@@ -271,9 +271,11 @@ func (c *Connection) Recv() {
 		case <-c.RecvDone:
 			continue
 
-		case <-time.After(2000 * time.Millisecond):
-			logger.Warning("recieve time out")
-			continue
+			/*
+				case <-time.After(2000 * time.Millisecond):
+					logger.Warning("recieve time out")
+					continue
+			*/
 			//c.Conn.Close()
 			//		return
 			// 这里还应该在 case 一个 停止的 sigal, 或者看要不要设置超时.
