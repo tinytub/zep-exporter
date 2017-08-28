@@ -31,7 +31,7 @@ func Configure() {
 		panic(err)
 	}
 	//logFile, err := os.OpenFile("/var/log/zep-cli/zep-cli.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0664)
-	logFile, err := rfw.Open("/var/log/zep-cli/zep-cli.log", 0644)
+	logFile, err := rfw.Open("/var/log/zep-cli/zep-exporter.log", 0644)
 	if err != nil {
 		panic(err)
 	}

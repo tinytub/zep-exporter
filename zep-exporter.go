@@ -1,9 +1,8 @@
 package main
 
 import (
-	"zhaopeng/colastore/logging"
-
 	"github.com/tinytub/zep-exporter/cmd"
+	"github.com/tinytub/zep-exporter/logging"
 )
 
 func main() {
