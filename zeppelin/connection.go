@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"stark/utils/log"
 	"strconv"
 	"sync"
 	"syscall"
@@ -232,7 +233,6 @@ func (c *Connection) Send(data []byte) error {
 }
 
 func (c *Connection) Recv() {
-	i := 1
 	for {
 		//logger.Info("recv", i)
 		select {
@@ -270,15 +270,16 @@ func (c *Connection) Recv() {
 				c.Data <- data
 			}
 		case <-c.RecvDone:
-			//c.Conn.Close()
-			//		return
+			continue
+
 		case <-time.After(2000 * time.Millisecond):
+			log.Warning("recieve time out")
+			continue
 			//c.Conn.Close()
 			//		return
 			// 这里还应该在 case 一个 停止的 sigal, 或者看要不要设置超时.
 
 		}
-		i = i + 1
 	}
 }
 

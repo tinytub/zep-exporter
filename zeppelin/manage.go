@@ -31,7 +31,7 @@ func ListNode() ([]*ZPMeta.NodeStatus, error) {
 	*/
 
 	data, _ := conn.ListNode()
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		return nil, errors.New(*data.Msg)
 	}
@@ -58,7 +58,7 @@ func ListMeta(addrs []string) (*ZPMeta.MetaNodes, error) {
 		}
 	*/
 	data, _ := conn.ListMeta()
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		return &ZPMeta.MetaNodes{}, errors.New(*data.Msg)
 	}
@@ -76,7 +76,7 @@ func ListTable() (*ZPMeta.TableName, error) {
 	*/
 
 	data, _ := conn.ListTable()
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		return &ZPMeta.TableName{}, errors.New(*data.Msg)
 	}
@@ -95,7 +95,7 @@ func PullTable(tablename string) (PTable, error) {
 	conn := GetMetaConn()
 
 	pullResp, err := conn.PullTable(tablename)
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if len(pullResp.Pull.GetInfo()) != 0 {
 		ptable.pull = pullResp.Pull.GetInfo()[0]
 		ptable.TableEpoch = pullResp.Pull.GetVersion()
@@ -119,7 +119,7 @@ func CreateTable(name string, num int32, addrs []string) {
 	*/
 
 	data, _ := conn.CreateTable(name, num)
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
@@ -137,7 +137,7 @@ func Ping(addrs []string) {
 	*/
 
 	data, _ := conn.Ping()
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
@@ -167,7 +167,7 @@ func Get(tablename string, key string, value string, addrs []string) {
 	//Nconn, err := NewConn(partlocale)
 
 	getresp, err := conn.Get(tablename, key)
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -530,7 +530,7 @@ func (job *JobInfoCap) Do(tablename string) {
 	*/
 
 	inforesp, err := conn.InfoCapacity(tablename)
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if err != nil {
 		job.result <- Result{}
 		return
@@ -557,7 +557,7 @@ func (job *JobInfoStats) Do(tablename string) {
 	*/
 
 	inforesp, err := conn.InfoStats(tablename)
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if err != nil {
 		job.result <- Result{}
 		return
@@ -583,7 +583,7 @@ func (job *JobOffset) Do(tablename string) {
 		}
 	*/
 	inforesp, err := conn.InfoRepl(tablename)
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if err != nil {
 		job.result <- Result{}
 		return
@@ -616,7 +616,7 @@ func (job *JobInfoServer) Do() {
 	*/
 
 	inforesp, err := conn.InfoServer()
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	if err != nil {
 		job.result <- Result{}
 		return
@@ -666,7 +666,7 @@ func locationPartition(tablename string, key string, addrs []string) []string {
 	*/
 
 	tableinfo, _ := conn.PullTable(tablename)
-	conn.RecvDone <- true
+	//conn.RecvDone <- true
 	//./src/zp_table.cc:  int par_num = std::hash<std::string>()(key) % partitions_.size();
 
 	/* 动态链接库的编译方法

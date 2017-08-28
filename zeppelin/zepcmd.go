@@ -41,6 +41,8 @@ func (c *Connection) PullTable(tablename string) (*ZPMeta.MetaCmdResponse, error
 
 	c.Send(cmd)
 	data, err := c.getData("meta")
+	c.RecvDone <- true
+
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		err = errors.New(data.(*ZPMeta.MetaCmdResponse).GetMsg())
 		cmdError.WithLabelValues("PullTable", string(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
@@ -86,6 +88,8 @@ func (c *Connection) PullNode(node string, port int32) (*ZPMeta.MetaCmdResponse,
 
 	c.Send(cmd)
 	data, err := c.getData("meta")
+	c.RecvDone <- true
+
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		err = errors.New(data.(*ZPMeta.MetaCmdResponse).GetMsg())
 		cmdError.WithLabelValues("PullNode", string(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
@@ -111,6 +115,8 @@ func (c *Connection) ListTable() (*ZPMeta.MetaCmdResponse, error) {
 
 	c.Send(cmd)
 	data, err := c.getData("meta")
+	c.RecvDone <- true
+
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		err = errors.New(data.(*ZPMeta.MetaCmdResponse).GetMsg())
 		cmdError.WithLabelValues("ListTable", string(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
@@ -144,6 +150,8 @@ func (c *Connection) ListNode() (*ZPMeta.MetaCmdResponse, error) {
 
 	c.Send(cmd)
 	data, err := c.getData("meta")
+	c.RecvDone <- true
+
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("ListNode", string(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*ZPMeta.MetaCmdResponse).GetMsg())
@@ -177,6 +185,8 @@ func (c *Connection) ListMeta() (*ZPMeta.MetaCmdResponse, error) {
 
 	c.Send(cmd)
 	data, err := c.getData("meta")
+	c.RecvDone <- true
+
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("ListMeta", string(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*ZPMeta.MetaCmdResponse).GetMsg())
@@ -210,6 +220,8 @@ func (c *Connection) CreateTable(name string, num int32) (*ZPMeta.MetaCmdRespons
 
 	c.Send(cmd)
 	data, err := c.getData("meta")
+	c.RecvDone <- true
+
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("CreateTable", string(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*ZPMeta.MetaCmdResponse).GetMsg())
@@ -247,6 +259,8 @@ func (c *Connection) InfoStats(tablename string) (*client.CmdResponse, error) {
 	defer c.mu.Unlock()
 
 	data, err := c.getData("node")
+	c.RecvDone <- true
+
 	if data.(*client.CmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("InfoStats", string(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
@@ -297,8 +311,9 @@ func (c *Connection) InfoCapacity(tablename string) (*client.CmdResponse, error)
 	defer c.mu.Unlock()
 
 	c.Send(cmd)
-
 	data, err := c.getData("node")
+	c.RecvDone <- true
+
 	if data.(*client.CmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("InfoCapacity", string(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
@@ -333,6 +348,8 @@ func (c *Connection) InfoRepl(tablename string) (*client.CmdResponse, error) {
 
 	c.Send(cmd)
 	data, err := c.getData("node")
+	c.RecvDone <- true
+
 	if data.(*client.CmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("InfoRepl", string(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
@@ -367,6 +384,8 @@ func (c *Connection) InfoServer() (*client.CmdResponse, error) {
 
 	c.Send(cmd)
 	data, err := c.getData("node")
+	c.RecvDone <- true
+
 	if data.(*client.CmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("InfoServer", string(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
@@ -390,19 +409,6 @@ func (c *Connection) MakeCmdInfoServer() ([]byte, error) {
 	return proto.Marshal(raw_cmd)
 }
 
-/*
-func (c *Connection) Ping() bool {
-    c.Send(&PingPacket{})
-
-    select {
-    case _, ok := <-c.pongs:
-        return ok
-    case <-time.After(500 * time.Millisecond):
-        return false
-    }
-}
-*/
-
 func (c *Connection) Set(tablename string, key string, value []byte) (*client.CmdResponse, error) {
 	cmd, err := c.MakeCmdSet(tablename, key, value)
 	if err != nil {
@@ -414,6 +420,8 @@ func (c *Connection) Set(tablename string, key string, value []byte) (*client.Cm
 
 	c.Send(cmd)
 	data, err := c.getData("node")
+	c.RecvDone <- true
+
 	if data.(*client.CmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("Set", string(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
@@ -450,6 +458,8 @@ func (c *Connection) Get(tablename string, key string) (*client.CmdResponse, err
 
 	c.Send(cmd)
 	data, err := c.getData("node")
+	c.RecvDone <- true
+
 	if data.(*client.CmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("Get", fmt.Sprint(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
@@ -478,7 +488,6 @@ func (c *Connection) Ping() (*ZPMeta.MetaCmdResponse, error) {
 	cmd, err := c.MakeCmdPing()
 	if err != nil {
 		logger.Info("marshal proto error", err)
-		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -486,10 +495,13 @@ func (c *Connection) Ping() (*ZPMeta.MetaCmdResponse, error) {
 
 	c.Send(cmd)
 	data, err := c.getData("meta")
+	c.RecvDone <- true
+
 	if data.(*client.CmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("Ping", fmt.Sprint(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
 	}
+
 	if err != nil {
 		cmdError.WithLabelValues("Ping", "999").Inc()
 		return data.(*ZPMeta.MetaCmdResponse), err
@@ -505,7 +517,6 @@ func (c *Connection) MakeCmdPing() ([]byte, error) {
 	return proto.Marshal(raw_cmd)
 }
 
-//func (c *Connection) getData(tag string) *ZPMeta.MetaCmdResponse {
 func (c *Connection) getData(tag string) (interface{}, error) {
 	//TODO 这里可以加 retry
 	timeout := time.After(1 * time.Second)
@@ -521,26 +532,15 @@ func (c *Connection) getData(tag string) (interface{}, error) {
 		case rawdata := <-c.Data:
 			if rawdata != nil {
 				newdata := c.ProtoUnserialize(rawdata, tag)
-				//close(c.RecvDone)
 				return newdata, nil
 			}
 		case <-timeout:
 			logger.Info("time out 1 second")
-			//fmt.Println("time out 1 second")
 			nildata := c.ProtoUnserialize(nil, tag)
-			//c.Conn.Close()
 			return nildata, errors.New("time out in 1 second")
-			/*
-			   case <-time.After(5000 * time.Millisecond):
-			       logger.Info("time out 5000ms")
-			       //		return &ZPMeta.MetaCmdResponse{}
-			       //return nil
-			       continue
-			*/
 		}
 	}
 }
 
 func (c *Connection) NilStruct(tag string) {
-
 }
