@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"qim/common/log"
 	"strconv"
 	"sync"
 	"syscall"
@@ -20,7 +21,12 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-const maxConnNum = 3
+const (
+	RefreshConnInterval   = 3 * time.Second
+	UselessConnChanLen    = 200
+	UselessConnRemoveWait = 180 * time.Second
+	maxConnNum            = 3
+)
 
 type Connection struct {
 	Conn       net.Conn
@@ -38,7 +44,12 @@ type TcpConns struct {
 	lock  sync.RWMutex
 }
 
-var connections map[string]*TcpConns
+var (
+	connections  map[string]*TcpConns
+	uselessConns chan []*Connection
+)
+
+//TODO:连接刷新和保活
 
 func InitMetaConns(addrs []string) {
 	connections = make(map[string]*TcpConns)
@@ -106,6 +117,95 @@ func (c *Connection) newConn(addr string) error {
 	c.Addr = addr
 	return nil
 }
+
+func refreshConnsByConf() {
+	uselessConns = make(chan []*Connection, UselessConnChanLen)
+	go removeConns()
+	for {
+		select {
+		case <-time.After(RefreshConnInterval):
+			refreshConns()
+		}
+	}
+}
+
+func closeConns() {
+
+}
+
+func refreshConns() {
+
+}
+
+func removeConns() {
+	for {
+		select {
+		case conns := <-uselessConns:
+			log.Info("close grpc client conns")
+			for _, c := range conns {
+				if c != nil {
+					c.Conn.Close()
+				}
+			}
+		}
+	}
+}
+
+/*
+func closeConns(gconns *grpcConns, addr string) {
+	gconns.lock.Lock()
+	defer gconns.lock.Unlock()
+	go func(useless []*grpc.ClientConn) {
+		time.Sleep(UselessConnRemoveWait)
+		uselessConns <- useless
+	}(gconns.conns[addr])
+	delete(gconns.conns, addr)
+	for i, v := range gconns.addrs {
+		if v == addr {
+			gconns.addrs = append(gconns.addrs[:i], gconns.addrs[i+1:]...)
+		}
+	}
+}
+
+func refreshConns() {
+	for bizName, gconns := range connections {
+		oldAddrs := gconns.addrs
+		newAddrs := connGetConf("Grpc"+gconns.info.BizName+"Addrs", []string{}).([]string)
+		if len(newAddrs) == 0 {
+			continue
+		}
+		delAddrs, addAddrs := utils.DiffStrSlices(oldAddrs, newAddrs)
+		for _, addr := range delAddrs {
+			log.Infof("close old conn, biz_name=%s, addr=%s", bizName, addr)
+			closeConns(gconns, addr)
+		}
+		num := connGetConf("Grpc"+gconns.info.BizName+"Conns", 1).(int)
+		opts, err := getDialOptions(gconns.info)
+		if err != nil {
+			log.Errorf("grpc getDialOptions err(%v)", err)
+			continue
+		}
+		for _, addr := range addAddrs {
+			log.Infof("open new conn, biz_name=%s, addr=%s", bizName, addr)
+			openConns(gconns, addr, num, opts)
+		}
+	}
+}
+
+func removeConns() {
+	for {
+		select {
+		case conns := <-uselessConns:
+			log.Info("close grpc client conns")
+			for _, c := range conns {
+				if c != nil {
+					c.Close()
+				}
+			}
+		}
+	}
+}
+*/
 
 func (c *Connection) Send(data []byte) error {
 
@@ -201,12 +301,16 @@ func (c *Connection) ProtoUnserialize(data []byte, tag string) interface{} {
 }
 
 func GetMetaConn() *Connection {
+	connections["meta"].lock.RLock()
+	defer connections["meta"].lock.RLock()
 	addr := connections["meta"].Addrs[rand.Intn(len(connections["meta"].Addrs))]
 	conn := connections["meta"].Conns[addr][rand.Intn(len(connections["meta"].Conns[addr]))]
 	return conn
 }
 
 func GetNodeConn(addr string) *Connection {
+	connections["node"].lock.RLock()
+	defer connections["node"].lock.RLock()
 	conn := connections["node"].Conns[addr][rand.Intn(len(connections["node"].Conns[addr]))]
 	return conn
 }
