@@ -1,9 +1,13 @@
 package main
 
-import "github.com/tinytub/zep-exporter/cmd"
+import (
+	"zhaopeng/colastore/logging"
+
+	"github.com/tinytub/zep-exporter/cmd"
+)
 
 func main() {
-
+	logging.Configure()
 	cmd.Execute()
 	//fmt.Println(connections["node"].Addrs)
 

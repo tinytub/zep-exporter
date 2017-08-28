@@ -58,12 +58,12 @@ func ListMeta(addrs []string) (*ZPMeta.MetaNodes, error) {
 		}
 	*/
 	data, _ := conn.ListMeta()
+	conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		return &ZPMeta.MetaNodes{}, errors.New(*data.Msg)
 	}
 	metas := data.ListMeta.Nodes
 
-	conn.RecvDone <- true
 	return metas, nil
 }
 
@@ -76,11 +76,11 @@ func ListTable() (*ZPMeta.TableName, error) {
 	*/
 
 	data, _ := conn.ListTable()
+	conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		return &ZPMeta.TableName{}, errors.New(*data.Msg)
 	}
 	tables := data.ListTable.Tables
-	conn.RecvDone <- true
 	return tables, nil
 }
 
@@ -109,6 +109,7 @@ func PullTable(tablename string) (PTable, error) {
 	return ptable, nil
 }
 
+//TODO 暂时没用到，return回头要改
 func CreateTable(name string, num int32, addrs []string) {
 	conn := GetMetaConn()
 	/*
@@ -118,12 +119,12 @@ func CreateTable(name string, num int32, addrs []string) {
 	*/
 
 	data, _ := conn.CreateTable(name, num)
+	conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
 	//fmt.Println(data)
-	conn.RecvDone <- true
 	return
 }
 
@@ -135,15 +136,13 @@ func Ping(addrs []string) {
 		}
 	*/
 
-	//conn.mu.Lock()
 	data, _ := conn.Ping()
-	//fmt.Println(data)
+	conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
 	fmt.Println(data)
-	conn.RecvDone <- true
 	return
 }
 
@@ -154,17 +153,12 @@ func Set(tablename string, key string, value string, addrs []string) {
 	//TODO: 这里node相关的是怎么处理的来着?
 	conn := GetNodeConn(partlocale[0])
 
-	/*
-		fmt.Println(Nconn)
-		infostats, _ := Nconn.InfoStats(tablename)
-		fmt.Println(infostats)
-	*/
 	v := []byte(value)
 	setresp, err := conn.Set(tablename, key, v)
 	if err != nil {
 		fmt.Println(err)
 	}
-	//fmt.Println(setresp)
+	fmt.Println(setresp)
 }
 
 func Get(tablename string, key string, value string, addrs []string) {
@@ -672,6 +666,7 @@ func locationPartition(tablename string, key string, addrs []string) []string {
 	*/
 
 	tableinfo, _ := conn.PullTable(tablename)
+	conn.RecvDone <- true
 	//./src/zp_table.cc:  int par_num = std::hash<std::string>()(key) % partitions_.size();
 
 	/* 动态链接库的编译方法
@@ -686,7 +681,6 @@ func locationPartition(tablename string, key string, addrs []string) []string {
 	parNum := uint(C.chash(C.CString(key))) % uint(partcount)
 	nodemaster := tableinfo.Pull.Info[0].Partitions[parNum].GetMaster()
 
-	conn.RecvDone <- true
 	var nodeaddrs []string
 	nodeaddrs = append(nodeaddrs, nodemaster.GetIp()+":"+strconv.Itoa(int(nodemaster.GetPort())))
 	return nodeaddrs
