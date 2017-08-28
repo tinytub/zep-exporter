@@ -110,11 +110,9 @@ func (c *Connection) newConn(addr string) error {
 		logger.Error("tcp conn err:", err)
 		return err
 	}
-	/*
-		c.Data = make(chan []byte, 4)
-		c.RecvDone = make(chan bool)
-		c.HasRequest = make(chan bool)
-	*/
+	c.Data = make(chan []byte, 4)
+	c.RecvDone = make(chan bool)
+	c.HasRequest = make(chan bool)
 	c.Conn = conn
 	c.Addr = addr
 	return nil
@@ -233,9 +231,6 @@ func (c *Connection) Send(data []byte) error {
 }
 
 func (c *Connection) Recv() {
-	c.Data = make(chan []byte, 4)
-	c.RecvDone = make(chan bool)
-	c.HasRequest = make(chan bool)
 	for {
 		//logger.Info("recv", i)
 		select {
@@ -273,10 +268,7 @@ func (c *Connection) Recv() {
 				c.Data <- data
 			}
 		case <-c.RecvDone:
-			close(c.Data)
-			close(c.RecvDone)
-			close(c.HasRequest)
-			break
+			return
 
 			/*
 				case <-time.After(2000 * time.Millisecond):
