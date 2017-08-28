@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"stark/utils/log"
 	"strconv"
 	"sync"
 	"syscall"
@@ -273,7 +272,7 @@ func (c *Connection) Recv() {
 			continue
 
 		case <-time.After(2000 * time.Millisecond):
-			log.Warning("recieve time out")
+			logger.Warning("recieve time out")
 			continue
 			//c.Conn.Close()
 			//		return
