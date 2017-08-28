@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"qim/common/log"
 	"strconv"
 	"sync"
 	"syscall"
@@ -134,14 +133,16 @@ func closeConns() {
 }
 
 func refreshConns() {
+	for cType, conn := range connections {
+		oldconn
 
+	}
 }
 
 func removeConns() {
 	for {
 		select {
 		case conns := <-uselessConns:
-			log.Info("close grpc client conns")
 			for _, c := range conns {
 				if c != nil {
 					c.Conn.Close()
