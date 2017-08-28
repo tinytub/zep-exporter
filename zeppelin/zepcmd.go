@@ -537,6 +537,12 @@ func (c *Connection) getData(tag string) (interface{}, error) {
 		case <-timeout:
 			logger.Info("time out 1 second")
 			nildata := c.ProtoUnserialize(nil, tag)
+			//TODO 超时关闭连接并重建连接？
+			//可以将这个连接放到useless里，然后删除useless的连接并建立新连接放回列表
+
+			//超时的话上一个包怎么丢弃？
+
+			c.RecvDone <- true
 			return nildata, errors.New("time out in 1 second")
 		}
 	}

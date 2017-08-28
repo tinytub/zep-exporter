@@ -69,7 +69,7 @@ func InitMetaConns(addrs []string) {
 			}
 
 			connections["meta"].Conns[addr] = append(connections["meta"].Conns[addr], c)
-			go c.Recv()
+			//go c.Recv()
 		}
 	}
 	logger.Info("inited meta conns")
@@ -95,7 +95,7 @@ func InitNodeConns() {
 					continue
 				}
 				connections["node"].Conns[addr] = append(connections["node"].Conns[addr], c)
-				go c.Recv()
+				//go c.Recv()
 				logger.Info("inited node conns", addr)
 			}
 		}
@@ -110,10 +110,11 @@ func (c *Connection) newConn(addr string) error {
 		logger.Error("tcp conn err:", err)
 		return err
 	}
-
-	c.Data = make(chan []byte, 4)
-	c.RecvDone = make(chan bool)
-	c.HasRequest = make(chan bool)
+	/*
+		c.Data = make(chan []byte, 4)
+		c.RecvDone = make(chan bool)
+		c.HasRequest = make(chan bool)
+	*/
 	c.Conn = conn
 	c.Addr = addr
 	return nil
@@ -232,6 +233,9 @@ func (c *Connection) Send(data []byte) error {
 }
 
 func (c *Connection) Recv() {
+	c.Data = make(chan []byte, 4)
+	c.RecvDone = make(chan bool)
+	c.HasRequest = make(chan bool)
 	for {
 		//logger.Info("recv", i)
 		select {
@@ -269,7 +273,10 @@ func (c *Connection) Recv() {
 				c.Data <- data
 			}
 		case <-c.RecvDone:
-			continue
+			close(c.Data)
+			close(c.RecvDone)
+			close(c.HasRequest)
+			break
 
 			/*
 				case <-time.After(2000 * time.Millisecond):
@@ -312,6 +319,7 @@ func GetMetaConn() *Connection {
 	defer connections["meta"].lock.RLock()
 	addr := connections["meta"].Addrs[rand.Intn(len(connections["meta"].Addrs))]
 	conn := connections["meta"].Conns[addr][rand.Intn(len(connections["meta"].Conns[addr]))]
+	go conn.Recv()
 	return conn
 }
 
@@ -319,5 +327,6 @@ func GetNodeConn(addr string) *Connection {
 	connections["node"].lock.RLock()
 	defer connections["node"].lock.RLock()
 	conn := connections["node"].Conns[addr][rand.Intn(len(connections["node"].Conns[addr]))]
+	go conn.Recv()
 	return conn
 }
