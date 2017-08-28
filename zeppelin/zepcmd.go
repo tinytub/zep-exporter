@@ -33,8 +33,8 @@ func init() {
 func (c *Connection) PullTable(tablename string) (*ZPMeta.MetaCmdResponse, error) {
 	cmd, err := c.MakeCmdPull(tablename, "", 0)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -77,8 +77,8 @@ func (c *Connection) PullNode(node string, port int32) (*ZPMeta.MetaCmdResponse,
 	//cmd, err := c.MakeCmdPullnode(node, port)
 	cmd, err := c.MakeCmdPull("", node, port)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -102,8 +102,8 @@ func (c *Connection) ListTable() (*ZPMeta.MetaCmdResponse, error) {
 
 	cmd, err := c.MakeCmdListTable()
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -136,8 +136,8 @@ func (c *Connection) MakeCmdListTable() ([]byte, error) {
 func (c *Connection) ListNode() (*ZPMeta.MetaCmdResponse, error) {
 	cmd, err := c.MakeCmdListNode()
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -168,8 +168,8 @@ func (c *Connection) MakeCmdListNode() ([]byte, error) {
 func (c *Connection) ListMeta() (*ZPMeta.MetaCmdResponse, error) {
 	cmd, err := c.MakeCmdListMeta()
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -201,8 +201,8 @@ func (c *Connection) MakeCmdListMeta() ([]byte, error) {
 func (c *Connection) CreateTable(name string, num int32) (*ZPMeta.MetaCmdResponse, error) {
 	cmd, err := c.MakeCmdCreateTable(name, num)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -239,8 +239,8 @@ func (c *Connection) InfoStats(tablename string) (*client.CmdResponse, error) {
 	c.mu.Lock()
 	cmd, err := c.MakeCmdInfoStats(tablename)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.Send(cmd)
@@ -289,8 +289,8 @@ func (c *Connection) MakeCmdInfoStats(tablename string) ([]byte, error) {
 func (c *Connection) InfoCapacity(tablename string) (*client.CmdResponse, error) {
 	cmd, err := c.MakeCmdInfoCapacity(tablename)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -324,8 +324,8 @@ func (c *Connection) MakeCmdInfoCapacity(tablename string) ([]byte, error) {
 func (c *Connection) InfoRepl(tablename string) (*client.CmdResponse, error) {
 	cmd, err := c.MakeCmdInfoRepl(tablename)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -358,8 +358,8 @@ func (c *Connection) MakeCmdInfoRepl(tablename string) ([]byte, error) {
 func (c *Connection) InfoServer() (*client.CmdResponse, error) {
 	cmd, err := c.MakeCmdInfoServer()
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -406,8 +406,8 @@ func (c *Connection) Ping() bool {
 func (c *Connection) Set(tablename string, key string, value []byte) (*client.CmdResponse, error) {
 	cmd, err := c.MakeCmdSet(tablename, key, value)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -441,8 +441,8 @@ func (c *Connection) MakeCmdSet(tablename string, key string, value []byte) ([]b
 func (c *Connection) Get(tablename string, key string) (*client.CmdResponse, error) {
 	cmd, err := c.MakeCmdGet(tablename, key)
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -477,8 +477,8 @@ func (c *Connection) MakeCmdGet(tablename string, key string) ([]byte, error) {
 func (c *Connection) Ping() (*ZPMeta.MetaCmdResponse, error) {
 	cmd, err := c.MakeCmdPing()
 	if err != nil {
-		//logger.Info("marshal proto error", err)
-		fmt.Println("marshal proto error", err)
+		logger.Info("marshal proto error", err)
+		//fmt.Println("marshal proto error", err)
 	}
 
 	c.mu.Lock()
@@ -525,8 +525,8 @@ func (c *Connection) getData(tag string) (interface{}, error) {
 				return newdata, nil
 			}
 		case <-timeout:
-			//		logger.Info("time out 1 second")
-			fmt.Println("time out 1 second")
+			logger.Info("time out 1 second")
+			//fmt.Println("time out 1 second")
 			nildata := c.ProtoUnserialize(nil, tag)
 			//c.Conn.Close()
 			return nildata, errors.New("time out in 1 second")

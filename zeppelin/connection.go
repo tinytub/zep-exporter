@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -14,11 +13,14 @@ import (
 	"syscall"
 	"time"
 
+	logging "github.com/op/go-logging"
 	"github.com/tinytub/zep-exporter/proto/ZPMeta"
 	"github.com/tinytub/zep-exporter/proto/client"
 
 	"github.com/golang/protobuf/proto"
 )
+
+var logger = logging.MustGetLogger("zeppelinecore")
 
 const (
 	RefreshConnInterval   = 3 * time.Second
@@ -62,7 +64,7 @@ func InitMetaConns(addrs []string) {
 			c := &Connection{}
 			err := c.newConn(addr)
 			if err != nil {
-				fmt.Println("bad conn, continue")
+				logger.Error("bad conn, continue")
 				continue
 			}
 
@@ -70,13 +72,13 @@ func InitMetaConns(addrs []string) {
 			go c.Recv()
 		}
 	}
-	fmt.Println("inited meta conns")
+	logger.Info("inited meta conns")
 }
 
 func InitNodeConns() {
 	nodes, err := ListNode()
 	if err != nil {
-		fmt.Println("can not get node list, initNodeConn err", err)
+		logger.Error("can not get node list, initNodeConn err", err)
 		os.Exit(1)
 	}
 	connections["node"] = &TcpConns{Addrs: []string{}, Conns: make(map[string][]*Connection)}
@@ -89,23 +91,23 @@ func InitNodeConns() {
 				c := &Connection{}
 				err := c.newConn(addr)
 				if err != nil {
-					fmt.Println("bad conn, continue")
+					logger.Warning("bad conn, continue")
 					continue
 				}
 				connections["node"].Conns[addr] = append(connections["node"].Conns[addr], c)
 				go c.Recv()
-				fmt.Println("inited node conns", addr)
+				logger.Info("inited node conns", addr)
 			}
 		}
 	}
-	fmt.Println("inited all node conns")
+	logger.Info("inited all node conns")
 
 }
 
 func (c *Connection) newConn(addr string) error {
 	conn, err := net.DialTimeout("tcp", addr, 1000*time.Millisecond)
 	if err != nil {
-		fmt.Println("tcp conn err:", err)
+		logger.Error("tcp conn err:", err)
 		return err
 	}
 
@@ -117,6 +119,7 @@ func (c *Connection) newConn(addr string) error {
 	return nil
 }
 
+/*
 func refreshConnsByConf() {
 	uselessConns = make(chan []*Connection, UselessConnChanLen)
 	go removeConns()
@@ -151,6 +154,7 @@ func removeConns() {
 		}
 	}
 }
+*/
 
 /*
 func closeConns(gconns *grpcConns, addr string) {
@@ -218,7 +222,7 @@ func (c *Connection) Send(data []byte) error {
 	_, err := c.Conn.Write(buff)
 
 	if err != nil {
-		fmt.Println("write err:", err)
+		logger.Error("write err:", err)
 		return err
 	}
 
@@ -254,14 +258,14 @@ func (c *Connection) Recv() {
 
 				if err != nil {
 					if err == syscall.EPIPE {
-						fmt.Println("io read err:", err)
+						logger.Error("io read err:", err)
 						//c.Conn.Close()
 					}
 					//			return
 				}
 				// 确认数据长度和从tcp 协议中获取的长度是否相同
 				if count != int(size) {
-					fmt.Println("wrong count")
+					logger.Error("wrong count")
 				}
 				c.Data <- data
 			}
@@ -284,7 +288,7 @@ func (c *Connection) ProtoUnserialize(data []byte, tag string) interface{} {
 		// protobuf 解析
 		err := proto.Unmarshal(data, newdata)
 		if err != nil {
-			fmt.Println("unmarshaling error: ", err, c.Addr)
+			logger.Error("unmarshaling error: ", err, c.Addr)
 		}
 		//    logger.Info(newdata)
 		return newdata
@@ -293,7 +297,7 @@ func (c *Connection) ProtoUnserialize(data []byte, tag string) interface{} {
 		// protobuf 解析
 		err := proto.Unmarshal(data, newdata)
 		if err != nil {
-			fmt.Println("unmarshaling error: ", err, c.Addr)
+			logger.Error("unmarshaling error: ", err, c.Addr)
 		}
 		//logger.Info(newdata)
 		return newdata

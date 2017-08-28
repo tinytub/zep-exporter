@@ -119,10 +119,10 @@ func CreateTable(name string, num int32, addrs []string) {
 
 	data, _ := conn.CreateTable(name, num)
 	if data.Code.String() != "OK" {
-		fmt.Println(*data.Msg)
+		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
-	fmt.Println(data)
+	//fmt.Println(data)
 	conn.RecvDone <- true
 	return
 }
@@ -137,9 +137,9 @@ func Ping(addrs []string) {
 
 	//conn.mu.Lock()
 	data, _ := conn.Ping()
-	fmt.Println(data)
+	//fmt.Println(data)
 	if data.Code.String() != "OK" {
-		fmt.Println(*data.Msg)
+		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
 	fmt.Println(data)
@@ -164,7 +164,7 @@ func Set(tablename string, key string, value string, addrs []string) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(setresp)
+	//fmt.Println(setresp)
 }
 
 func Get(tablename string, key string, value string, addrs []string) {
@@ -401,13 +401,13 @@ func (ptable *PTable) Offset(tablename string) (map[int32][]*Unsyncoffset, error
 						slaveoffset := slaveParts[partition.GetId()]
 						if !reflect.DeepEqual(masteroffset, slaveoffset) {
 							offset := (float64(masteroffset.GetFilenum()) - float64(slaveoffset.GetFilenum()))
-							fmt.Println("mfile: ", masteroffset.GetFilenum())
-							fmt.Println("afile: ", slaveoffset.GetFilenum())
+							//fmt.Println("mfile: ", masteroffset.GetFilenum())
+							//fmt.Println("afile: ", slaveoffset.GetFilenum())
 
 							if offset == 0 {
 								offset = float64((masteroffset.GetOffset() - slaveoffset.GetOffset())) / 1000000000
-								fmt.Println("moff: ", masteroffset.GetOffset())
-								fmt.Println("soff: ", slaveoffset.GetOffset())
+								//fmt.Println("moff: ", masteroffset.GetOffset())
+								//fmt.Println("soff: ", slaveoffset.GetOffset())
 							}
 							//logger.Infof("tablename:%s, masterFileNum: %d, slaveFileNum: %d, masterOffset: %d, slaveOffset: %d, offsetDiff: %f\n", tablename, masteroffset.GetFilenum(), slaveoffset.GetFilenum(), masteroffset.GetOffset(), slaveoffset.GetOffset(), offset)
 							unsyncoffset[partition.GetId()] = append(unsyncoffset[partition.GetId()], &Unsyncoffset{Addr: saddr, Offset: offset})
@@ -698,7 +698,7 @@ func getPartition(conn *Connection, tablename string) int {
 	data, _ := conn.PullTable(tablename)
 
 	if data.Code.String() != "OK" {
-		fmt.Println(*data.Msg)
+		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
 
@@ -706,7 +706,7 @@ func getPartition(conn *Connection, tablename string) int {
 	for _, part := range data.Pull.Info {
 		pNum += len(part.Partitions)
 	}
-	fmt.Println(pNum)
+	//fmt.Println(pNum)
 	return pNum
 }
 
