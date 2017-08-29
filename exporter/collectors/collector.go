@@ -150,13 +150,16 @@ func (c *ZepClusterCollector) collectorList() []prometheus.Collector {
 	}
 }
 
+//TODO 似乎跑了两次？
 func (c *ZepClusterCollector) collect() error {
 	var wg sync.WaitGroup
+	rawNodes, _ := zeppelin.ListNode()
 	go func() {
-		rawNodes, _ := zeppelin.ListNode()
+		wg.Add(1)
 		nodes := len(rawNodes)
 		c.NodeCount.Set(float64(nodes))
 
+		logger.Info("nodecount done")
 		upnodes := 0
 		for _, node := range rawNodes {
 			if node.GetStatus() == 0 {
@@ -167,6 +170,8 @@ func (c *ZepClusterCollector) collect() error {
 			}
 		}
 		c.UpNodeCount.Set(float64(upnodes))
+		wg.Done()
+		logger.Info("upnode done")
 	}()
 
 	go func() {
@@ -175,19 +180,24 @@ func (c *ZepClusterCollector) collect() error {
 		metas := len(rawMetas.Followers) + 1
 		c.MetaCount.Set(float64(metas))
 		wg.Done()
+		logger.Info("listMeta done")
 	}()
 
 	// listable --> space
 	tablelist, _ := zeppelin.ListTable()
+	logger.Info("listtable done")
 
 	for _, tablename := range tablelist.Name {
-		ptable, _ := zeppelin.PullTable(tablename)
+		logger.Info("table info starting: ", tablename)
+		ptable, _ := zeppelin.PullTable(tablename, rawNodes)
+		logger.Info("pulltable done")
 		go func(tablename string, ptable zeppelin.PTable) {
 			wg.Add(1)
 			used, remain, _ := ptable.Space(tablename)
 			c.TableUsed.WithLabelValues(tablename).Set(float64(used))
 			c.TableRemain.WithLabelValues(tablename).Set(float64(remain))
 			wg.Done()
+			logger.Info("tableused tableremain done")
 		}(tablename, ptable)
 		go func(tablename string, ptable zeppelin.PTable) {
 			tableEpoch := ptable.TableEpoch
@@ -198,13 +208,16 @@ func (c *ZepClusterCollector) collect() error {
 				c.Epoch.WithLabelValues("node", "", e.Addr).Set(float64(e.Epoch))
 			}
 			wg.Done()
+			logger.Info("epoch done")
 		}(tablename, ptable)
+
 		go func(tablename string, ptable zeppelin.PTable) {
 			wg.Add(1)
 			query, qps, _ := ptable.Stats(tablename)
 			c.TableQuery.WithLabelValues(tablename).Set(float64(query))
 			c.TableQPS.WithLabelValues(tablename).Set(float64(qps))
 			wg.Done()
+			logger.Info("query qps done")
 		}(tablename, ptable)
 
 		go func(tablename string, ptable zeppelin.PTable) {
@@ -215,10 +228,13 @@ func (c *ZepClusterCollector) collect() error {
 					c.TableOffset.WithLabelValues(tablename, strconv.Itoa(int(pid)), offset.Addr).Set(offset.Offset)
 				}
 			}
+			logger.Info("offset done")
 			wg.Done()
 		}(tablename, ptable)
+		logger.Info("table info end: ", tablename)
 	}
 	wg.Wait()
+	logger.Info("alldone")
 
 	return nil
 }

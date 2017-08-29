@@ -30,7 +30,11 @@ func ListNode() ([]*ZPMeta.NodeStatus, error) {
 		}
 	*/
 
-	data, _ := conn.ListNode()
+	data, err := conn.ListNode()
+	if err != nil {
+		return []*ZPMeta.NodeStatus{}, err
+	}
+	logger.Info("Get ListNode Date done")
 	//conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		return nil, errors.New(*data.Msg)
@@ -52,13 +56,11 @@ type Node struct {
 func ListMeta(addrs []string) (*ZPMeta.MetaNodes, error) {
 	conn := GetMetaConn()
 
-	/*
-		if err != nil {
-			return &ZPMeta.MetaNodes{}, err
-		}
-	*/
-	data, _ := conn.ListMeta()
-	//conn.RecvDone <- true
+	data, err := conn.ListMeta()
+	if err != nil {
+		return &ZPMeta.MetaNodes{}, err
+	}
+
 	if data.Code.String() != "OK" {
 		return &ZPMeta.MetaNodes{}, errors.New(*data.Msg)
 	}
@@ -75,8 +77,12 @@ func ListTable() (*ZPMeta.TableName, error) {
 		}
 	*/
 
-	data, _ := conn.ListTable()
+	data, err := conn.ListTable()
 	//conn.RecvDone <- true
+	if err != nil {
+		return &ZPMeta.TableName{}, err
+	}
+
 	if data.Code.String() != "OK" {
 		return &ZPMeta.TableName{}, errors.New(*data.Msg)
 	}
@@ -90,17 +96,24 @@ type PTable struct {
 	nodelist   []*ZPMeta.NodeStatus
 }
 
-func PullTable(tablename string) (PTable, error) {
+func PullTable(tablename string, nodes []*ZPMeta.NodeStatus) (PTable, error) {
 	var ptable PTable
 	conn := GetMetaConn()
 
 	pullResp, err := conn.PullTable(tablename)
+
+	if err != nil {
+		return ptable, err
+	}
 	//conn.RecvDone <- true
 	if len(pullResp.Pull.GetInfo()) != 0 {
 		ptable.pull = pullResp.Pull.GetInfo()[0]
 		ptable.TableEpoch = pullResp.Pull.GetVersion()
 	}
-	ptable.nodelist, err = ListNode()
+
+	//TODO 从外部传入或者搞成公共函数？
+	//ptable.nodelist, err = ListNode()
+	ptable.nodelist = nodes
 
 	if err != nil {
 		return ptable, err
@@ -128,22 +141,21 @@ func CreateTable(name string, num int32, addrs []string) {
 	return
 }
 
-func Ping(addrs []string) {
+func Ping(addr string) error {
 	conn := GetMetaConn()
-	/*
-		if err != nil {
-			//return nil, err
-		}
-	*/
 
-	data, _ := conn.Ping()
+	data, err := conn.Ping()
+	if err != nil {
+		logger.Warning(err)
+		return err
+	}
 	//conn.RecvDone <- true
 	if data.Code.String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
 	fmt.Println(data)
-	return
+	return nil
 }
 
 func Set(tablename string, key string, value string, addrs []string) {

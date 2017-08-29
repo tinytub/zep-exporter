@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -23,17 +24,18 @@ import (
 var logger = logging.MustGetLogger("zeppelinecore")
 
 const (
-	RefreshConnInterval   = 3 * time.Second
+	RefreshConnInterval   = 10 * time.Second
 	UselessConnChanLen    = 200
-	UselessConnRemoveWait = 180 * time.Second
+	UselessConnRemoveWait = 60 * time.Second
 	maxConnNum            = 3
 )
 
 type Connection struct {
-	Conn       net.Conn
-	Addr       string
-	Data       chan []byte
-	ok         int
+	Conn net.Conn
+	Addr string
+	Data chan []byte
+	//	Mynum      int
+	Mytype     string
 	HasRequest chan bool
 	RecvDone   chan bool
 	mu         sync.Mutex
@@ -47,7 +49,7 @@ type TcpConns struct {
 
 var (
 	connections  map[string]*TcpConns
-	uselessConns chan []*Connection
+	uselessConns chan *Connection
 )
 
 //TODO:连接刷新和保活
@@ -58,21 +60,33 @@ func InitMetaConns(addrs []string) {
 	// 地址从config里读
 	//connections["meta"].Addrs = []string{"bada9305.add.bjyt.qihoo.net:9221"}
 	connections["meta"].Addrs = addrs
-
+	var wg sync.WaitGroup
 	for _, addr := range connections["meta"].Addrs {
-		for i := 1; i < maxConnNum; i++ {
-			c := &Connection{}
-			err := c.newConn(addr)
-			if err != nil {
-				logger.Error("bad conn, continue")
-				continue
-			}
+		for i := 0; i < maxConnNum; i++ {
+			go func(addr string) {
+				wg.Add(1)
+				c := &Connection{}
+				err := c.newConn(addr)
+				if err != nil {
+					logger.Error("bad conn, continue")
+					wg.Done()
+					return
+					//continue
+				}
+				c.Addr = addr
+				c.Mytype = "meta"
 
-			connections["meta"].Conns[addr] = append(connections["meta"].Conns[addr], c)
-			//go c.Recv()
+				connections["meta"].lock.Lock()
+				defer connections["meta"].lock.Unlock()
+				connections["meta"].Conns[addr] = append(connections["meta"].Conns[addr], c)
+				logger.Info("inited meta conns", addr)
+				wg.Done()
+				//go c.Recv()
+			}(addr)
 		}
 	}
 	logger.Info("inited meta conns")
+	wg.Wait()
 }
 
 func InitNodeConns() {
@@ -83,23 +97,37 @@ func InitNodeConns() {
 	}
 	connections["node"] = &TcpConns{Addrs: []string{}, Conns: make(map[string][]*Connection)}
 
+	var wg sync.WaitGroup
 	for _, node := range nodes {
 		if *node.Status != int32(1) {
-			for i := 1; i < maxConnNum; i++ {
-				nodeinfo := node.GetNode()
-				addr := nodeinfo.GetIp() + ":" + strconv.Itoa(int(nodeinfo.GetPort()))
-				c := &Connection{}
-				err := c.newConn(addr)
-				if err != nil {
-					logger.Warning("bad conn, continue")
-					continue
-				}
-				connections["node"].Conns[addr] = append(connections["node"].Conns[addr], c)
-				//go c.Recv()
-				logger.Info("inited node conns", addr)
+			for i := 0; i < maxConnNum; i++ {
+				go func(node *ZPMeta.NodeStatus) {
+					wg.Add(1)
+					nodeinfo := node.GetNode()
+					addr := nodeinfo.GetIp() + ":" + strconv.Itoa(int(nodeinfo.GetPort()))
+					c := &Connection{}
+					err := c.newConn(addr)
+					if err != nil {
+						logger.Warning("bad conn, continue")
+						wg.Done()
+						return
+						//continue
+					}
+
+					c.Addr = addr
+					c.Mytype = "node"
+
+					connections["node"].lock.Lock()
+					defer connections["node"].lock.Unlock()
+					connections["node"].Conns[addr] = append(connections["node"].Conns[addr], c)
+					//go c.Recv()
+					logger.Info("inited node conns", addr)
+					wg.Done()
+				}(node)
 			}
 		}
 	}
+	wg.Wait()
 	logger.Info("inited all node conns")
 
 }
@@ -116,6 +144,75 @@ func (c *Connection) newConn(addr string) error {
 	c.Conn = conn
 	c.Addr = addr
 	return nil
+}
+
+func RefreashConns() {
+	uselessConns = make(chan *Connection, UselessConnChanLen)
+	go removeConns()
+	for {
+		select {
+		case <-time.After(RefreshConnInterval):
+			logger.Info("time to refreash")
+			refreshConns()
+		}
+	}
+
+}
+
+func removeConns() {
+	for {
+		select {
+		case conn := <-uselessConns:
+			conn.Conn.Close()
+			logger.Info("conn real close")
+		}
+	}
+}
+
+func CloseConns(conn *Connection) {
+	logger.Info("close conn")
+	//connections[conn.Mytype].lock.Lock()
+	//defer connections[conn.Mytype].lock.Unlock()
+
+	go func(useless *Connection) {
+		time.Sleep(UselessConnRemoveWait)
+		uselessConns <- useless
+	}(conn)
+	logger.Info("useless channel append")
+
+	for i, c := range connections[conn.Mytype].Conns[conn.Addr] {
+		if c == conn {
+			fmt.Println(conn.Mytype, conn.Addr)
+
+			connections[conn.Mytype].Conns[conn.Addr] = append(connections[conn.Mytype].Conns[conn.Addr][:i], connections[conn.Mytype].Conns[conn.Addr][i+1:]...)
+			//connections[conn.Mytype].Conns[conn.Addr] = append(connections[conn.Mytype].Conns[conn.Addr][:conn.Mynum], connections[conn.Mytype].Conns[conn.Addr][conn.Mynum+1:]...)
+		}
+	}
+	logger.Info("close done")
+
+}
+
+func refreshConns() {
+	for cType, tconns := range connections {
+		for addr, conns := range tconns.Conns {
+			logger.Info(addr, len(conns))
+			if len(conns) < maxConnNum {
+				for i := 0; i < maxConnNum-len(conns); i++ {
+					c := &Connection{}
+					err := c.newConn(addr)
+					if err != nil {
+						logger.Warning("bad conn, continue")
+						continue
+					}
+					c.Addr = addr
+					c.Mytype = cType
+					conns = append(conns, c)
+					connections[cType].Conns[addr] = conns
+					logger.Info("refresh conn")
+				}
+			}
+		}
+	}
 }
 
 /*
@@ -212,7 +309,7 @@ func removeConns() {
 */
 
 func (c *Connection) Send(data []byte) error {
-
+	go c.Recv()
 	buff := make([]byte, 4+len(data))
 	binary.BigEndian.PutUint32(buff[0:4], uint32(len(data)))
 
@@ -232,18 +329,15 @@ func (c *Connection) Send(data []byte) error {
 
 func (c *Connection) Recv() {
 	for {
-		//logger.Info("recv", i)
 		select {
 		case <-c.HasRequest:
 			buf := make([]byte, 4)
 			var size int32
 			var data []byte
 			reader := bufio.NewReader(c.Conn)
-			//logger.Info(c.Conn, i)
 			// 前四个字节一般表示网络包大小
 			if count, err := io.ReadFull(reader, buf); err == nil && count == 4 {
 
-				//logger.Info("reading", i)
 				sbuf := bytes.NewBuffer(buf)
 				// 先读数据长度
 				binary.Read(sbuf, binary.BigEndian, &size)
@@ -257,9 +351,7 @@ func (c *Connection) Recv() {
 				if err != nil {
 					if err == syscall.EPIPE {
 						logger.Error("io read err:", err)
-						//c.Conn.Close()
 					}
-					//			return
 				}
 				// 确认数据长度和从tcp 协议中获取的长度是否相同
 				if count != int(size) {
@@ -267,6 +359,7 @@ func (c *Connection) Recv() {
 				}
 				c.Data <- data
 			}
+
 		case <-c.RecvDone:
 			return
 
@@ -303,22 +396,29 @@ func (c *Connection) ProtoUnserialize(data []byte, tag string) interface{} {
 		//logger.Info(newdata)
 		return newdata
 	}
+
 	return nil
 }
 
 func GetMetaConn() *Connection {
 	connections["meta"].lock.RLock()
 	defer connections["meta"].lock.RLock()
-	addr := connections["meta"].Addrs[rand.Intn(len(connections["meta"].Addrs))]
-	conn := connections["meta"].Conns[addr][rand.Intn(len(connections["meta"].Conns[addr]))]
-	go conn.Recv()
+	addrnum := rand.Intn(len(connections["meta"].Addrs))
+	addr := connections["meta"].Addrs[addrnum]
+	fmt.Println(len(connections["meta"].Conns[addr]))
+	connnum := rand.Intn(len(connections["meta"].Conns[addr]))
+	conn := connections["meta"].Conns[addr][connnum]
+	logger.Info("meta conn num: ", connnum)
+
 	return conn
 }
 
 func GetNodeConn(addr string) *Connection {
 	connections["node"].lock.RLock()
 	defer connections["node"].lock.RLock()
-	conn := connections["node"].Conns[addr][rand.Intn(len(connections["node"].Conns[addr]))]
-	go conn.Recv()
+	connnum := rand.Intn(len(connections["node"].Conns[addr]))
+	conn := connections["node"].Conns[addr][connnum]
+	//logger.Info("node conn num: ", connnum)
+
 	return conn
 }

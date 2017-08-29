@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	stdlog "log"
 	"os"
 
@@ -28,20 +29,21 @@ func Configure() {
 	// NOTE these file permissions are restricted by umask, so they probably won't work right.
 	err := os.MkdirAll("/var/log/zep-cli/", 0775)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 	//logFile, err := os.OpenFile("/var/log/zep-cli/zep-cli.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0664)
 	logFile, err := rfw.Open("/var/log/zep-cli/zep-exporter.log", 0644)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 
 	// 需要添加 rotate 功能 https://github.com/mipearson/rfw 或者 https://github.com/stathat/rotate
 	fileLogBackend := golog.NewLogBackend(logFile, "", stdlog.LstdFlags|stdlog.Lshortfile)
 	fileLogBackend.Color = true
+	fmt.Println(fileLogBackend)
 
 	//golog.SetBackend(stdoutLogBackend, fileLogBackend)
-	//golog.SetBackend(stdoutLogBackend)
-	golog.SetBackend(fileLogBackend)
+	golog.SetBackend(stdoutLogBackend)
+	//golog.SetBackend(fileLogBackend)
 
 }

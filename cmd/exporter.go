@@ -30,6 +30,7 @@ var exporterCmd = &cobra.Command{
 		meta := checkZepRegionNGetMeta(region)
 		zeppelin.InitMetaConns(meta)
 		zeppelin.InitNodeConns()
+		go zeppelin.RefreashConns()
 		exporter.DoExporter(addr, matricPath, hostType)
 	},
 }

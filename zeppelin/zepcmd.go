@@ -39,7 +39,12 @@ func (c *Connection) PullTable(tablename string) (*ZPMeta.MetaCmdResponse, error
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &ZPMeta.MetaCmdResponse{}, err
+	}
+
 	data, err := c.getData("meta")
 	c.RecvDone <- true
 
@@ -86,7 +91,12 @@ func (c *Connection) PullNode(node string, port int32) (*ZPMeta.MetaCmdResponse,
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &ZPMeta.MetaCmdResponse{}, err
+	}
+
 	data, err := c.getData("meta")
 	c.RecvDone <- true
 
@@ -113,7 +123,12 @@ func (c *Connection) ListTable() (*ZPMeta.MetaCmdResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &ZPMeta.MetaCmdResponse{}, err
+	}
+
 	data, err := c.getData("meta")
 	c.RecvDone <- true
 
@@ -148,9 +163,16 @@ func (c *Connection) ListNode() (*ZPMeta.MetaCmdResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &ZPMeta.MetaCmdResponse{}, err
+	}
+
 	data, err := c.getData("meta")
+	logger.Info("zepcmd ListNode GetData Done")
 	c.RecvDone <- true
+	logger.Info("put true to RecvDone")
 
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("ListNode", string(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
@@ -183,7 +205,12 @@ func (c *Connection) ListMeta() (*ZPMeta.MetaCmdResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &ZPMeta.MetaCmdResponse{}, err
+	}
+
 	data, err := c.getData("meta")
 	c.RecvDone <- true
 
@@ -218,7 +245,12 @@ func (c *Connection) CreateTable(name string, num int32) (*ZPMeta.MetaCmdRespons
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &ZPMeta.MetaCmdResponse{}, err
+	}
+
 	data, err := c.getData("meta")
 	c.RecvDone <- true
 
@@ -255,7 +287,12 @@ func (c *Connection) InfoStats(tablename string) (*client.CmdResponse, error) {
 		//fmt.Println("marshal proto error", err)
 	}
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &client.CmdResponse{}, err
+	}
+
 	defer c.mu.Unlock()
 
 	data, err := c.getData("node")
@@ -310,7 +347,12 @@ func (c *Connection) InfoCapacity(tablename string) (*client.CmdResponse, error)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &client.CmdResponse{}, err
+	}
+
 	data, err := c.getData("node")
 	c.RecvDone <- true
 
@@ -346,7 +388,12 @@ func (c *Connection) InfoRepl(tablename string) (*client.CmdResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &client.CmdResponse{}, err
+	}
+
 	data, err := c.getData("node")
 	c.RecvDone <- true
 
@@ -382,7 +429,12 @@ func (c *Connection) InfoServer() (*client.CmdResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &client.CmdResponse{}, err
+	}
+
 	data, err := c.getData("node")
 	c.RecvDone <- true
 
@@ -418,7 +470,12 @@ func (c *Connection) Set(tablename string, key string, value []byte) (*client.Cm
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &client.CmdResponse{}, err
+	}
+
 	data, err := c.getData("node")
 	c.RecvDone <- true
 
@@ -426,6 +483,7 @@ func (c *Connection) Set(tablename string, key string, value []byte) (*client.Cm
 		cmdError.WithLabelValues("Set", string(data.(*client.CmdResponse).GetCode())).Inc()
 		err = errors.New(data.(*client.CmdResponse).GetMsg())
 	}
+
 	if err != nil {
 		cmdError.WithLabelValues("Set", "999").Inc()
 		return data.(*client.CmdResponse), err
@@ -456,7 +514,11 @@ func (c *Connection) Get(tablename string, key string) (*client.CmdResponse, err
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &client.CmdResponse{}, err
+	}
 	data, err := c.getData("node")
 	c.RecvDone <- true
 
@@ -493,13 +555,18 @@ func (c *Connection) Ping() (*ZPMeta.MetaCmdResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.Send(cmd)
+	err = c.Send(cmd)
+	if err != nil {
+		logger.Warning("sending error")
+		return &ZPMeta.MetaCmdResponse{}, err
+	}
+
 	data, err := c.getData("meta")
 	c.RecvDone <- true
 
-	if data.(*client.CmdResponse).GetCode() != 0 {
-		cmdError.WithLabelValues("Ping", fmt.Sprint(data.(*client.CmdResponse).GetCode())).Inc()
-		err = errors.New(data.(*client.CmdResponse).GetMsg())
+	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
+		cmdError.WithLabelValues("Ping", fmt.Sprint(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
+		err = errors.New(data.(*ZPMeta.MetaCmdResponse).GetMsg())
 	}
 
 	if err != nil {
@@ -537,12 +604,12 @@ func (c *Connection) getData(tag string) (interface{}, error) {
 		case <-timeout:
 			logger.Info("time out 1 second")
 			nildata := c.ProtoUnserialize(nil, tag)
+			CloseConns(c)
 			//TODO 超时关闭连接并重建连接？
 			//可以将这个连接放到useless里，然后删除useless的连接并建立新连接放回列表
 
 			//超时的话上一个包怎么丢弃？
 
-			c.RecvDone <- true
 			return nildata, errors.New("time out in 1 second")
 		}
 	}

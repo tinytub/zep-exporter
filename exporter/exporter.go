@@ -68,6 +68,7 @@ func (c *ZepExporter) Collect(ch chan<- prometheus.Metric) {
 	defer c.mu.Unlock()
 
 	for _, cc := range c.collectors {
+		fmt.Println("call collect", cc)
 		cc.Collect(ch)
 	}
 }
