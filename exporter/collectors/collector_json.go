@@ -19,6 +19,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"strings"
+	"sync"
 
 	//"github.com/prometheus/common/log"
 
@@ -201,6 +204,21 @@ func (c *ZepClusterJsonCollector) collectorList() []prometheus.Collector {
 //TODO 似乎跑了两次？
 func (c *ZepClusterJsonCollector) collect() error {
 	//infoFile, _ := os.Open("/usr/local/zep-server/bin/info_json_result")
+	var wg sync.WaitGroup
+
+	err := exeCmd(c.basepath+"/zp_info", &wg)
+	if err != nil {
+		logger.Error("can not run cmd zp_info")
+		return err
+	}
+	err = exeCmd(c.basepath+"/zp_checkup", &wg)
+	if err != nil {
+		logger.Error("can not run cmd zp_checkup")
+		return err
+	}
+
+	wg.Wait()
+
 	infoFile, err := os.Open(c.basepath + "/info_json_result")
 	if err != nil {
 		logger.Error("cannot open file", c.basepath)
@@ -304,4 +322,18 @@ func (c *ZepClusterJsonCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, metric := range c.collectorList() {
 		metric.Collect(ch)
 	}
+}
+
+func exeCmd(cmd string, wg *sync.WaitGroup) error {
+	wg.Add(1)
+	parts := strings.Fields(cmd)
+	head := parts[0]
+	parts = parts[1:len(parts)]
+
+	err := exec.Command(head, parts...).Run()
+	if err != nil {
+		return err
+	}
+	wg.Done()
+	return nil
 }
