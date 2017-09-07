@@ -17,38 +17,26 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/tinytub/zep-exporter/exporter"
-	"github.com/tinytub/zep-exporter/zeppelin"
 )
 
 // exporterCmd represents the exporter command
-var exporterCmd = &cobra.Command{
-	Use:   "exporter",
-	Short: "zep exporter for prometheus",
+var jsonexporterCmd = &cobra.Command{
+	Use:   "json",
+	Short: "zep exporter json for prometheus",
 	Run: func(cmd *cobra.Command, args []string) {
 		//check region 并获取meta地址这个是不是要换个地方？
-		meta := checkZepRegionNGetMeta(region)
-		zeppelin.InitMetaConns(meta)
-		zeppelin.InitNodeConns()
-		go zeppelin.RefreashConns()
-		exporter.DoExporter(addr, "", matricPath, hostType)
+		exporter.DoExporter(addr, path, matricPath, hostType)
 	},
 }
 var (
-	addr       string
-	matricPath string
-	hostType   string
-	region     string
+	path string
 )
 
 func init() {
 
-	exporterCmd.Flags().StringVar(&addr, "addr", ":9128", "listen address")
-	exporterCmd.Flags().StringVar(&matricPath, "matricpath", "/metrics", "metric path")
-	exporterCmd.Flags().StringVar(&hostType, "hosttype", "tcp", "host type")
-	//	exporterCmd.Flags().StringVar(&region, "region", "", "zep region")
+	jsonexporterCmd.Flags().StringVar(&path, "path", "/usr/local/zep-server/bin", "listen address")
+	jsonexporterCmd.Flags().StringVar(&matricPath, "matricpath", "/metrics", "metric path")
+	jsonexporterCmd.Flags().StringVar(&hostType, "hosttype", "json", "host type")
 
-	exporterCmd.PersistentFlags().StringVar(&region, "region", "", "zeppelin region")
-
-	RootCmd.AddCommand(exporterCmd)
-
+	RootCmd.AddCommand(jsonexporterCmd)
 }

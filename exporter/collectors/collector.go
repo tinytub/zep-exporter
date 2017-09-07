@@ -36,10 +36,8 @@ const (
 // or shrinking as a whole in order to zero in on the cause. The pool specific
 // stats are provided separately.
 type ZepClusterCollector struct {
-	//conn      Conn
-	addrs     []string
-	MetaCount prometheus.Gauge
-
+	addrs       []string
+	MetaCount   prometheus.Gauge
 	NodeCount   prometheus.Gauge
 	UpNodeCount prometheus.Gauge
 	NodeUp      *prometheus.GaugeVec
@@ -56,8 +54,6 @@ type ZepClusterCollector struct {
 //func NewZepClusterCollector(conn Conn) *ZepClusterCollector {
 func NewZepClusterCollector() *ZepClusterCollector {
 	return &ZepClusterCollector{
-		//conn: conn,
-		//addrs: addrs,
 		MetaCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -153,75 +149,74 @@ func (c *ZepClusterCollector) collectorList() []prometheus.Collector {
 //TODO 似乎跑了两次？
 func (c *ZepClusterCollector) collect() error {
 	var wg sync.WaitGroup
-	rawNodes, _ := zeppelin.ListNode()
-	go func() {
-		wg.Add(1)
-		nodes := len(rawNodes)
-		c.NodeCount.Set(float64(nodes))
+	rawNodes, err := zeppelin.ListNode()
+	if err == nil {
+		go func() {
+			wg.Add(1)
+			nodes := len(rawNodes)
+			c.NodeCount.Set(float64(nodes))
 
-		logger.Info("nodecount done")
-		upnodes := 0
-		for _, node := range rawNodes {
-			if node.GetStatus() == 0 {
-				c.NodeUp.WithLabelValues(node.Node.GetIp(), strconv.Itoa(int(node.Node.GetPort()))).Set(float64(node.GetStatus()))
-				upnodes += 1
-			} else {
-				c.NodeUp.WithLabelValues(node.Node.GetIp(), strconv.Itoa(int(node.Node.GetPort()))).Set(float64(node.GetStatus()))
+			logger.Info("nodecount done")
+			upnodes := 0
+			for _, node := range rawNodes {
+				if node.GetStatus() == 0 {
+					c.NodeUp.WithLabelValues(node.Node.GetIp(), strconv.Itoa(int(node.Node.GetPort()))).Set(float64(node.GetStatus()))
+					upnodes += 1
+				} else {
+					c.NodeUp.WithLabelValues(node.Node.GetIp(), strconv.Itoa(int(node.Node.GetPort()))).Set(float64(node.GetStatus()))
+				}
 			}
-		}
-		c.UpNodeCount.Set(float64(upnodes))
-		wg.Done()
-		logger.Info("upnode done")
-	}()
-
+			c.UpNodeCount.Set(float64(upnodes))
+			wg.Done()
+			logger.Info("upnode done")
+		}()
+	}
 	go func() {
 		wg.Add(1)
-		rawMetas, _ := zeppelin.ListMeta(c.addrs)
-		metas := len(rawMetas.Followers) + 1
-		c.MetaCount.Set(float64(metas))
+		rawMetas, err := zeppelin.ListMeta(c.addrs)
+		if err == nil {
+			metas := len(rawMetas.GetFollowers()) + 1
+			c.MetaCount.Set(float64(metas))
+		}
 		wg.Done()
 		logger.Info("listMeta done")
 	}()
 
 	// listable --> space
-	tablelist, _ := zeppelin.ListTable()
-	logger.Info("listtable done")
+	tablelist, err := zeppelin.ListTable()
+	if err != nil {
+		wg.Wait()
+		return nil
+		logger.Error("listtable error")
+	}
 
 	for _, tablename := range tablelist.Name {
 		logger.Info("table info starting: ", tablename)
-		ptable, _ := zeppelin.PullTable(tablename, rawNodes)
+		ptable, err := zeppelin.PullTable(tablename, rawNodes)
+		if err != nil {
+			logger.Error("pull table error", err)
+		}
 		logger.Info("pulltable done")
 		go func(tablename string, ptable zeppelin.PTable) {
 			wg.Add(1)
 			used, remain, _ := ptable.Space(tablename)
 			c.TableUsed.WithLabelValues(tablename).Set(float64(used))
 			c.TableRemain.WithLabelValues(tablename).Set(float64(remain))
-			wg.Done()
 			logger.Info("tableused tableremain done")
-		}(tablename, ptable)
-		go func(tablename string, ptable zeppelin.PTable) {
+
 			tableEpoch := ptable.TableEpoch
 			c.Epoch.WithLabelValues("table", tablename, "").Set(float64(tableEpoch))
-			wg.Add(1)
 			nodeEpoch, _ := ptable.Server()
 			for _, e := range nodeEpoch {
 				c.Epoch.WithLabelValues("node", "", e.Addr).Set(float64(e.Epoch))
 			}
-			wg.Done()
 			logger.Info("epoch done")
-		}(tablename, ptable)
 
-		go func(tablename string, ptable zeppelin.PTable) {
-			wg.Add(1)
 			query, qps, _ := ptable.Stats(tablename)
 			c.TableQuery.WithLabelValues(tablename).Set(float64(query))
 			c.TableQPS.WithLabelValues(tablename).Set(float64(qps))
-			wg.Done()
 			logger.Info("query qps done")
-		}(tablename, ptable)
 
-		go func(tablename string, ptable zeppelin.PTable) {
-			wg.Add(1)
 			Offset, _ := ptable.Offset(tablename)
 			for pid, slave := range Offset {
 				for _, offset := range slave {
@@ -235,18 +230,13 @@ func (c *ZepClusterCollector) collect() error {
 	}
 	wg.Wait()
 	logger.Info("alldone")
-
+	go zeppelin.CloseAllConn()
 	return nil
 }
 
 // Describe sends the descriptors of each metric over to the provided channel.
 // The corresponding metric values are sent separately.
 func (c *ZepClusterCollector) Describe(ch chan<- *prometheus.Desc) {
-	/*
-		for _, metric := range c.metricsList() {
-			ch <- metric.Desc()
-		}
-	*/
 	for _, metric := range c.collectorList() {
 		metric.Describe(ch)
 	}
@@ -256,14 +246,9 @@ func (c *ZepClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 // cluster usage over to the provided prometheus Metric channel.
 func (c *ZepClusterCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := c.collect(); err != nil {
-		logger.Error("[ERROR] failed collecting cluster usage metrics:", err)
+		logger.Error("failed collecting cluster usage metrics:", err)
 		return
 	}
-	/*
-		for _, metric := range c.metricsList() {
-			ch <- metric
-		}
-	*/
 	for _, metric := range c.collectorList() {
 		metric.Collect(ch)
 	}

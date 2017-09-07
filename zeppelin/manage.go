@@ -36,10 +36,12 @@ func ListNode() ([]*ZPMeta.NodeStatus, error) {
 	}
 	logger.Info("Get ListNode Date done")
 	//conn.RecvDone <- true
-	if data.Code.String() != "OK" {
+	fmt.Println(data.GetCode().String())
+	if data.GetCode().String() != "OK" {
 		return nil, errors.New(*data.Msg)
 	}
-	nodes := data.ListNode.Nodes.Nodes
+	//nodes := data.ListNode.Nodes.Nodes
+	nodes := data.GetListNode().GetNodes().GetNodes()
 
 	return nodes, nil
 }
@@ -54,17 +56,18 @@ type Node struct {
 }
 
 func ListMeta(addrs []string) (*ZPMeta.MetaNodes, error) {
-	conn := GetMetaConn()
 
+	conn := GetMetaConn()
 	data, err := conn.ListMeta()
 	if err != nil {
 		return &ZPMeta.MetaNodes{}, err
 	}
 
-	if data.Code.String() != "OK" {
+	if data.GetCode().String() != "OK" {
 		return &ZPMeta.MetaNodes{}, errors.New(*data.Msg)
 	}
-	metas := data.ListMeta.Nodes
+	//metas := data.ListMeta.Nodes
+	metas := data.GetListMeta().GetNodes()
 
 	return metas, nil
 }
@@ -83,10 +86,11 @@ func ListTable() (*ZPMeta.TableName, error) {
 		return &ZPMeta.TableName{}, err
 	}
 
-	if data.Code.String() != "OK" {
+	if data.GetCode().String() != "OK" {
 		return &ZPMeta.TableName{}, errors.New(*data.Msg)
 	}
-	tables := data.ListTable.Tables
+	//tables := data.ListTable.Tables
+	tables := data.GetListTable().GetTables()
 	return tables, nil
 }
 
@@ -103,12 +107,15 @@ func PullTable(tablename string, nodes []*ZPMeta.NodeStatus) (PTable, error) {
 	pullResp, err := conn.PullTable(tablename)
 
 	if err != nil {
+		logger.Error("cannot get pullTabel")
 		return ptable, err
 	}
-	//conn.RecvDone <- true
-	if len(pullResp.Pull.GetInfo()) != 0 {
-		ptable.pull = pullResp.Pull.GetInfo()[0]
-		ptable.TableEpoch = pullResp.Pull.GetVersion()
+	if len(pullResp.GetPull().GetInfo()) != 0 {
+		//ptable.pull = pullResp.Pull.GetInfo()[0]
+		ptable.pull = pullResp.GetPull().GetInfo()[0]
+		//ptable.TableEpoch = pullResp.Pull.GetVersion()
+		ptable.TableEpoch = pullResp.GetPull().GetVersion()
+		logger.Warning("Epoch:", ptable.TableEpoch)
 	}
 
 	//TODO 从外部传入或者搞成公共函数？
@@ -133,7 +140,7 @@ func CreateTable(name string, num int32, addrs []string) {
 
 	data, _ := conn.CreateTable(name, num)
 	//conn.RecvDone <- true
-	if data.Code.String() != "OK" {
+	if data.GetCode().String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
@@ -150,7 +157,7 @@ func Ping(addr string) error {
 		return err
 	}
 	//conn.RecvDone <- true
-	if data.Code.String() != "OK" {
+	if data.GetCode().String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
@@ -188,20 +195,6 @@ func Get(tablename string, key string, value string, addrs []string) {
 }
 
 func (ptable *PTable) Space(tablename string) (int64, int64, error) {
-	// pull table ---> get partition master info state ---> calculate
-	/*
-		Mconn, err := NewConn(addrs)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		pullResp, err := Mconn.PullTable(tablename)
-		if err != nil {
-			return 0, 0, err
-		}
-		Mconn.RecvDone <- true
-		pull := pullResp.Pull.GetInfo()[0]
-	*/
 	pull := ptable.pull
 	//	var masters []string
 	var used int64 = 0
@@ -220,8 +213,9 @@ func (ptable *PTable) Space(tablename string) (int64, int64, error) {
 		pmaddrs := make(map[string]int)
 
 		for _, partition := range pull.GetPartitions() {
-			ip := partition.Master.GetIp()
-			port := strconv.Itoa(int(partition.Master.GetPort()))
+			//ip := partition.Master.GetIp()
+			ip := partition.GetMaster().GetIp()
+			port := strconv.Itoa(int(partition.GetMaster().GetPort()))
 			pmaddrs[ip+":"+port] = 0
 			//jobs <- job{addr, results}
 		}
@@ -273,8 +267,8 @@ func (ptable *PTable) Stats(tablename string) (int64, int32, error) {
 	go func() {
 		pmaddrs := make(map[string]int)
 		for _, partition := range pull.GetPartitions() {
-			ip := partition.Master.GetIp()
-			port := strconv.Itoa(int(partition.Master.GetPort()))
+			ip := partition.GetMaster().GetIp()
+			port := strconv.Itoa(int(partition.GetMaster().GetPort()))
 			pmaddrs[ip+":"+port] = 0
 
 			//pmaddrs[ip] = port
@@ -337,8 +331,8 @@ func (ptable *PTable) Offset(tablename string) (map[int32][]*Unsyncoffset, error
 	go func() {
 		pmaddrs := make(map[string]int)
 		for _, partition := range pull.GetPartitions() {
-			mip := partition.Master.GetIp()
-			mport := strconv.Itoa(int(partition.Master.GetPort()))
+			mip := partition.GetMaster().GetIp()
+			mport := strconv.Itoa(int(partition.GetMaster().GetPort()))
 			//ip + port 这种 map 方式不合理
 			pmaddrs[mip+":"+mport] = 0
 			/*
@@ -382,8 +376,8 @@ func (ptable *PTable) Offset(tablename string) (map[int32][]*Unsyncoffset, error
 	}
 
 	for _, partition := range pull.GetPartitions() {
-		mIp := partition.Master.GetIp()
-		mPort := strconv.Itoa(int(partition.Master.GetPort()))
+		mIp := partition.GetMaster().GetIp()
+		mPort := strconv.Itoa(int(partition.GetMaster().GetPort()))
 		maddr := mIp + ":" + mPort
 
 		if v, ok := alloffsets[maddr]; ok && len(partition.Slaves) > 0 {
@@ -392,7 +386,7 @@ func (ptable *PTable) Offset(tablename string) (map[int32][]*Unsyncoffset, error
 			for _, slave := range partition.GetSlaves() {
 
 				for _, node := range ptable.nodelist {
-					if node.GetStatus() == 0 && node.Node.GetIp() == slave.GetIp() && node.Node.GetPort() == slave.GetPort() {
+					if node.GetStatus() == 0 && node.GetNode().GetIp() == slave.GetIp() && node.GetNode().GetPort() == slave.GetPort() {
 						//logger.Info("slave ip: ", slave.GetIp())
 						sIp := slave.GetIp()
 						// out of range ?
@@ -405,6 +399,12 @@ func (ptable *PTable) Offset(tablename string) (map[int32][]*Unsyncoffset, error
 							continue
 						}
 						slaveoffset := slaveParts[partition.GetId()]
+						if slaveoffset.GetFilenum() == 0 || slaveoffset.GetOffset() == 0 {
+							logger.Error("filenum: ", masteroffset.GetFilenum(), slaveoffset.GetFilenum())
+							logger.Error("offset: ", masteroffset.GetOffset(), slaveoffset.GetOffset())
+							logger.Warning("offset or filenum equal 0, skip")
+							continue
+						}
 						if !reflect.DeepEqual(masteroffset, slaveoffset) {
 							offset := (float64(masteroffset.GetFilenum()) - float64(slaveoffset.GetFilenum()))
 							//fmt.Println("mfile: ", masteroffset.GetFilenum())
@@ -453,8 +453,8 @@ func (ptable *PTable) Server() ([]*nodeEpoch, error) {
 	go func() {
 		pmaddrs := make(map[string]int)
 		for _, partition := range pull.GetPartitions() {
-			ip := partition.Master.GetIp()
-			port := strconv.Itoa(int(partition.Master.GetPort()))
+			ip := partition.GetMaster().GetIp()
+			port := strconv.Itoa(int(partition.GetMaster().GetPort()))
 			pmaddrs[ip+":"+port] = 0
 
 			//pmaddrs[ip] = port
@@ -534,21 +534,19 @@ func (job *JobInfoCap) Do(tablename string) {
 	var remain int64
 	//Nconn, errN := NewConn([]string{job.addr})
 	conn := GetNodeConn(job.addr)
-	/*
-		if errN != nil {
-			job.result <- Result{}
-			return
-		}
-	*/
 
 	inforesp, err := conn.InfoCapacity(tablename)
 	//conn.RecvDone <- true
 	if err != nil {
 		job.result <- Result{}
+		logger.Warning("cannot get capacity: ", job.addr)
 		return
 	}
 	infoCap := inforesp.GetInfoCapacity()
 	for _, i := range infoCap {
+		//logger.Info("usd", i.GetTableName(), i.GetUsed())
+		//logger.Info("remain", i.GetTableName(), i.GetRemain())
+
 		used += i.GetUsed()
 		remain += i.GetRemain()
 	}
@@ -598,6 +596,7 @@ func (job *JobOffset) Do(tablename string) {
 	//conn.RecvDone <- true
 	if err != nil {
 		job.result <- Result{}
+		logger.Error("cannot get infopart:", job.addr)
 		return
 	}
 	infoPart := inforesp.GetInfoRepl()
@@ -607,7 +606,7 @@ func (job *JobOffset) Do(tablename string) {
 		//fmt.Println("offset:", i.GetSyncOffset())
 		result.Pstate = i.GetPartitionState()
 		for _, p := range result.Pstate {
-			//fmt.Println("offset:", p.GetSyncOffset(), p.GetPartitionId())
+			//logger.Info("offset:", p.GetSyncOffset(), p.GetPartitionId())
 			result.Offsets = append(result.Offsets, p.GetSyncOffset())
 		}
 		result.addr = job.addr
@@ -689,9 +688,9 @@ func locationPartition(tablename string, key string, addrs []string) []string {
 	g++ -o chash chash.cc -std=c++11
 	*/
 
-	partcount := len(tableinfo.Pull.Info[0].Partitions)
+	partcount := len(tableinfo.GetPull().GetInfo()[0].GetPartitions())
 	parNum := uint(C.chash(C.CString(key))) % uint(partcount)
-	nodemaster := tableinfo.Pull.Info[0].Partitions[parNum].GetMaster()
+	nodemaster := tableinfo.GetPull().GetInfo()[0].GetPartitions()[parNum].GetMaster()
 
 	var nodeaddrs []string
 	nodeaddrs = append(nodeaddrs, nodemaster.GetIp()+":"+strconv.Itoa(int(nodemaster.GetPort())))
@@ -703,14 +702,14 @@ func getPartition(conn *Connection, tablename string) int {
 
 	data, _ := conn.PullTable(tablename)
 
-	if data.Code.String() != "OK" {
+	if data.GetCode().String() != "OK" {
 		logger.Warningf(*data.Msg)
 		os.Exit(0)
 	}
 
 	var pNum int
-	for _, part := range data.Pull.Info {
-		pNum += len(part.Partitions)
+	for _, part := range data.GetPull().GetInfo() {
+		pNum += len(part.GetPartitions())
 	}
 	//fmt.Println(pNum)
 	return pNum

@@ -16,7 +16,6 @@
 package exporter
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -42,12 +41,21 @@ var _ prometheus.Collector = &ZepExporter{}
 // NewZepExporter creates an instance to ZepExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewZepExporter(hostType string) *ZepExporter {
+func NewZepExporter(hostType, path string) *ZepExporter {
 	var exporter *ZepExporter
-	exporter = &ZepExporter{
-		collectors: []prometheus.Collector{
-			collectors.NewZepClusterCollector(),
-		},
+	switch hostType {
+	case "tcp":
+		exporter = &ZepExporter{
+			collectors: []prometheus.Collector{
+				collectors.NewZepClusterCollector(),
+			},
+		}
+	case "json":
+		exporter = &ZepExporter{
+			collectors: []prometheus.Collector{
+				collectors.NewZepClusterJsonCollector(path),
+			},
+		}
 	}
 	return exporter
 }
@@ -68,26 +76,22 @@ func (c *ZepExporter) Collect(ch chan<- prometheus.Metric) {
 	defer c.mu.Unlock()
 
 	for _, cc := range c.collectors {
-		fmt.Println("call collect", cc)
 		cc.Collect(ch)
 	}
 }
 
-func DoExporter(addr, metricsPath, hostType string) {
+func DoExporter(addr, path, metricsPath, hostType string) {
 
 	//conn := zeppelin.NewConn(addrs)
 	//prometheus.MustRegister(NewZepExporter(conn, hostType))
-	prometheus.MustRegister(NewZepExporter(hostType))
-	fmt.Println("try register new zep exporter")
+	prometheus.MustRegister(NewZepExporter(hostType, path))
 
 	http.Handle(metricsPath, prometheus.Handler())
-	fmt.Println("handle metric path")
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, metricsPath, http.StatusMovedPermanently)
 	})
 
-	log.Printf("Starting zep exporter on %q", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatalf("cannot start zep exporter: %s", err)
 	}

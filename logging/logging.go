@@ -40,10 +40,9 @@ func Configure() {
 	// 需要添加 rotate 功能 https://github.com/mipearson/rfw 或者 https://github.com/stathat/rotate
 	fileLogBackend := golog.NewLogBackend(logFile, "", stdlog.LstdFlags|stdlog.Lshortfile)
 	fileLogBackend.Color = true
-	fmt.Println(fileLogBackend)
 
 	//golog.SetBackend(stdoutLogBackend, fileLogBackend)
-	golog.SetBackend(stdoutLogBackend)
-	//golog.SetBackend(fileLogBackend)
+	//golog.SetBackend(stdoutLogBackend)
+	golog.SetBackend(fileLogBackend)
 
 }

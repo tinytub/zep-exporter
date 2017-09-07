@@ -3,7 +3,6 @@ package zeppelin
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tinytub/zep-exporter/proto/ZPMeta"
@@ -562,7 +561,9 @@ func (c *Connection) Ping() (*ZPMeta.MetaCmdResponse, error) {
 	}
 
 	data, err := c.getData("meta")
-	c.RecvDone <- true
+	if err == nil {
+		c.RecvDone <- true
+	}
 
 	if data.(*ZPMeta.MetaCmdResponse).GetCode() != 0 {
 		cmdError.WithLabelValues("Ping", fmt.Sprint(data.(*ZPMeta.MetaCmdResponse).GetCode())).Inc()
@@ -582,37 +583,6 @@ func (c *Connection) MakeCmdPing() ([]byte, error) {
 		Type: ZPMeta.Type_PING.Enum(),
 	}
 	return proto.Marshal(raw_cmd)
-}
-
-func (c *Connection) getData(tag string) (interface{}, error) {
-	//TODO 这里可以加 retry
-	timeout := time.After(1 * time.Second)
-	//	tick := time.Tick(500 * time.Millisecond)
-
-	for {
-		select {
-		/*
-		   case <-tick:
-		       rawdata := <-c.Data
-		       fmt.Println(time.Now())
-		*/
-		case rawdata := <-c.Data:
-			if rawdata != nil {
-				newdata := c.ProtoUnserialize(rawdata, tag)
-				return newdata, nil
-			}
-		case <-timeout:
-			logger.Info("time out 1 second")
-			nildata := c.ProtoUnserialize(nil, tag)
-			CloseConns(c)
-			//TODO 超时关闭连接并重建连接？
-			//可以将这个连接放到useless里，然后删除useless的连接并建立新连接放回列表
-
-			//超时的话上一个包怎么丢弃？
-
-			return nildata, errors.New("time out in 1 second")
-		}
-	}
 }
 
 func (c *Connection) NilStruct(tag string) {
