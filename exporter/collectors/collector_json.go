@@ -40,6 +40,7 @@ type ZepClusterJsonCollector struct {
 	NodeCount    prometheus.Gauge
 	NodeUp       prometheus.Gauge
 	NodeDown     prometheus.Gauge
+	MetaMaster   *prometheus.GaugeVec
 	TableUsed    *prometheus.GaugeVec
 	TableRemain  *prometheus.GaugeVec
 	TableQuery   *prometheus.GaugeVec
@@ -66,6 +67,7 @@ func NewZepClusterJsonCollector(path string) *ZepClusterJsonCollector {
 				Name:      "meta_count",
 				Help:      "zeppelin meta server count",
 			}),
+
 		NodeCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -84,6 +86,14 @@ func NewZepClusterJsonCollector(path string) *ZepClusterJsonCollector {
 				Name:      "NodeUp",
 				Help:      "zeppelin node is up",
 			},
+		),
+		MetaMaster: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "meta_master",
+				Help:      "zeppelin meta server master",
+			},
+			[]string{"master"},
 		),
 		TableUsed: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -145,14 +155,11 @@ func NewZepClusterJsonCollector(path string) *ZepClusterJsonCollector {
 				Help:      "zeppelin healty",
 			},
 		),
-		//Pcount       prometheus.Gauge
-		//Inconsistent prometheus.Gauge
-		//Incomplete   prometheus.Gauge
-		//Lagging      prometheus.Gauge
+
 		Pcount: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: namespace,
-				Name:      "Pount",
+				Name:      "Pcount",
 				Help:      "zeppelin pcount",
 			},
 			[]string{"table"},
@@ -168,7 +175,7 @@ func NewZepClusterJsonCollector(path string) *ZepClusterJsonCollector {
 		Incomplete: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: namespace,
-				Name:      "incomplete",
+				Name:      "Incomplete",
 				Help:      "zeppelin incomplete",
 			},
 			[]string{"table"},
@@ -189,6 +196,7 @@ func (c *ZepClusterJsonCollector) collectorList() []prometheus.Collector {
 		c.MetaCount,
 		c.NodeCount,
 		c.NodeDown,
+		c.MetaMaster,
 		c.NodeUp,
 		c.TableUsed,
 		c.TableRemain,
@@ -198,62 +206,25 @@ func (c *ZepClusterJsonCollector) collectorList() []prometheus.Collector {
 		c.Epoch,
 		c.Dismatch,
 		c.Healthy,
+		c.Pcount,
+		c.Inconsistent,
+		c.Incomplete,
+		c.Lagging,
 	}
 }
 
 //TODO 似乎跑了两次？
 func (c *ZepClusterJsonCollector) collect() error {
-	//infoFile, _ := os.Open("/usr/local/zep-server/bin/info_json_result")
-	var wg sync.WaitGroup
 
-	err := exeCmd(c.basepath+"/zp_info", &wg)
+	info, checkup, err := fileCheck()
 	if err != nil {
-		logger.Error("can not run cmd zp_info")
-		return err
-	}
-	err = exeCmd(c.basepath+"/zp_checkup", &wg)
-	if err != nil {
-		logger.Error("can not run cmd zp_checkup")
-		return err
-	}
-
-	wg.Wait()
-
-	infoFile, err := os.Open(c.basepath + "/info_json_result")
-	if err != nil {
-		logger.Error("cannot open file", c.basepath)
-		return err
-	}
-	defer infoFile.Close()
-
-	infoReader := bufio.NewReader(infoFile)
-	infoContent, _ := ioutil.ReadAll(infoReader)
-
-	//checkupFile, _ := os.Open("/usrlocal/zep-server/bin/checkup_json_result")
-	checkupFile, _ := os.Open(c.basepath + "/checkup_json_result")
-	if err != nil {
-		logger.Error("cannot open file", c.basepath)
-		return err
-	}
-	defer checkupFile.Close()
-
-	checkupReader := bufio.NewReader(checkupFile)
-	checkupContent, _ := ioutil.ReadAll(checkupReader)
-
-	var info Info
-	var checkup Checkup
-
-	if err := json.Unmarshal(infoContent, &info); err != nil {
-		logger.Error("json unmarshal error ", err)
-		return err
-	}
-	if err := json.Unmarshal(checkupContent, &checkup); err != nil {
-		logger.Error("json unmarshal error ", err)
 		return err
 	}
 
 	if info.Meta.Error != "true" {
 		c.MetaCount.Set(float64(info.Meta.Count))
+		c.MetaMaster.Reset()
+		c.MetaMaster.WithLabelValues(info.Meta.Master).Set(1)
 	}
 
 	if info.Query.Error != "true" {
@@ -288,6 +259,11 @@ func (c *ZepClusterJsonCollector) collect() error {
 		c.Epoch.Set(float64(checkup.Epoch.Epoch))
 		c.Dismatch.Set(float64(checkup.Epoch.DismatchNum))
 	}
+
+	c.Pcount.Reset()
+	c.Inconsistent.Reset()
+	c.Incomplete.Reset()
+	c.Lagging.Reset()
 
 	if checkup.Table.Error != "true" {
 		c.TableCount.Set(float64(checkup.Table.Count))
@@ -336,4 +312,41 @@ func exeCmd(cmd string, wg *sync.WaitGroup) error {
 	}
 	wg.Done()
 	return nil
+}
+
+func fileCheck() (Info, Checkup, error) {
+	var info Info
+	var checkup Checkup
+
+	infoFile, err := os.Open("/tmp/info_json_result")
+	if err != nil {
+		logger.Error("cannot open file", "/tmp/info_json_result")
+		return info, checkup, err
+	}
+	defer infoFile.Close()
+
+	infoReader := bufio.NewReader(infoFile)
+	infoContent, _ := ioutil.ReadAll(infoReader)
+
+	//checkupFile, _ := os.Open("/usrlocal/zep-server/bin/checkup_json_result")
+	checkupFile, _ := os.Open("/tmp/checkup_json_result")
+	if err != nil {
+		logger.Error("cannot open file", "/tmp/checkup_json_result")
+		return info, checkup, err
+	}
+	defer checkupFile.Close()
+
+	checkupReader := bufio.NewReader(checkupFile)
+	checkupContent, _ := ioutil.ReadAll(checkupReader)
+
+	if err := json.Unmarshal(infoContent, &info); err != nil {
+		logger.Error("json unmarshal error ", err)
+		return info, checkup, err
+	}
+	if err := json.Unmarshal(checkupContent, &checkup); err != nil {
+		logger.Error("json unmarshal error ", err)
+		return info, checkup, err
+	}
+
+	return info, checkup, nil
 }
