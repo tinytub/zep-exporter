@@ -23,15 +23,13 @@ import (
 	"strings"
 	"sync"
 
-	//"github.com/prometheus/common/log"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 var boolchange = map[string]int{"true": 0, "false": 1}
 
 // A ClusterUsageCollector is used to gather all the global stats about a given
-// ceph cluster. It is sometimes essential to know how fast the cluster is growing
+// zep cluster. It is sometimes essential to know how fast the cluster is growing
 // or shrinking as a whole in order to zero in on the cause. The pool specific
 // stats are provided separately.
 type ZepClusterJsonCollector struct {
@@ -328,7 +326,6 @@ func fileCheck() (Info, Checkup, error) {
 	infoReader := bufio.NewReader(infoFile)
 	infoContent, _ := ioutil.ReadAll(infoReader)
 
-	//checkupFile, _ := os.Open("/usrlocal/zep-server/bin/checkup_json_result")
 	checkupFile, _ := os.Open("/tmp/checkup_json_result")
 	if err != nil {
 		logger.Error("cannot open file", "/tmp/checkup_json_result")

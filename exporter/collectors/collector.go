@@ -32,7 +32,7 @@ const (
 )
 
 // A ClusterUsageCollector is used to gather all the global stats about a given
-// ceph cluster. It is sometimes essential to know how fast the cluster is growing
+// zep cluster. It is sometimes essential to know how fast the cluster is growing
 // or shrinking as a whole in order to zero in on the cause. The pool specific
 // stats are provided separately.
 type ZepClusterCollector struct {
