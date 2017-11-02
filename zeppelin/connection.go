@@ -61,7 +61,6 @@ func InitMetaConns(addrs []string) {
 	connections = make(map[string]*TcpConns)
 	connections["meta"] = &TcpConns{Addrs: []string{}, Conns: make(map[string](chan *Connection))}
 	// 地址从config里读
-	//connections["meta"].Addrs = []string{"bada9305.add.bjyt.qihoo.net:9221"}
 	connections["meta"].Addrs = addrs
 	var wg sync.WaitGroup
 	for _, addr := range connections["meta"].Addrs {
