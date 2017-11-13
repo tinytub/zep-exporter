@@ -33,7 +33,9 @@ var boolchange = map[string]int{"true": 0, "false": 1}
 // or shrinking as a whole in order to zero in on the cause. The pool specific
 // stats are provided separately.
 type ZepClusterJsonCollector struct {
-	basepath     string
+	basepath   string
+	tableCount int
+
 	MetaCount    prometheus.Gauge
 	NodeCount    prometheus.Gauge
 	NodeUp       prometheus.Gauge
@@ -226,6 +228,12 @@ func (c *ZepClusterJsonCollector) collect() error {
 	}
 
 	if info.Query.Error != "true" {
+		tc := len(info.Query.Detail)
+		if c.tableCount != tc {
+			c.tableCount = tc
+			c.TableUsed.Reset()
+			c.TableRemain.Reset()
+		}
 		for _, table := range info.Query.Detail {
 			c.TableQuery.WithLabelValues(table.Name).Set(float64(table.TotalQuery))
 			c.TableQPS.WithLabelValues(table.Name).Set(float64(table.QPS))
@@ -234,6 +242,13 @@ func (c *ZepClusterJsonCollector) collect() error {
 
 	//TODO 这里可以对容量作更多计算
 	if info.Space.Error != "true" {
+		tc := len(info.Space.Detail)
+		if c.tableCount != tc {
+			c.tableCount = tc
+			c.TableUsed.Reset()
+			c.TableRemain.Reset()
+		}
+
 		for _, table := range info.Space.Detail {
 			var used int = 0
 			var remain int64 = 0
@@ -258,11 +273,6 @@ func (c *ZepClusterJsonCollector) collect() error {
 		c.Dismatch.Set(float64(checkup.Epoch.DismatchNum))
 	}
 
-	c.Pcount.Reset()
-	c.Inconsistent.Reset()
-	c.Incomplete.Reset()
-	c.Lagging.Reset()
-
 	if checkup.Table.Error != "true" {
 		c.TableCount.Set(float64(checkup.Table.Count))
 		for _, table := range checkup.Table.Detail {
@@ -271,6 +281,11 @@ func (c *ZepClusterJsonCollector) collect() error {
 				c.Inconsistent.WithLabelValues(table.Name).Set(float64(table.Inconsistent))
 				c.Incomplete.WithLabelValues(table.Name).Set(float64(table.Incomplete))
 				c.Lagging.WithLabelValues(table.Name).Set(float64(table.Lagging))
+			} else {
+				c.Pcount.Reset()
+				c.Inconsistent.Reset()
+				c.Incomplete.Reset()
+				c.Lagging.Reset()
 			}
 		}
 	}
