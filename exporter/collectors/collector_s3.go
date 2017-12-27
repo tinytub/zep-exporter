@@ -2,7 +2,6 @@ package collectors
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -29,7 +28,7 @@ type ZepClusterS3Collector struct {
 
 func NewZepClusterS3Collector(path string) *ZepClusterS3Collector {
 	if path == "" {
-		fmt.Println("no remote path")
+		logger.Error("there is no remote S3 metrics path found")
 		os.Exit(1)
 	}
 	return &ZepClusterS3Collector{
@@ -131,20 +130,30 @@ func (c *ZepClusterS3Collector) collect() error {
 
 	if qps, err := strconv.Atoi(s3Status.QPS); err == nil {
 		c.QPS.Set(float64(qps))
+	} else {
+		logger.Errorf("failed to convert QPS to int, error: %s", err)
 	}
 
 	if ct, err := strconv.Atoi(s3Status.ClusterTraffic); err == nil {
 		c.ClusterTraffic.Add(float64(ct))
+	} else {
+		logger.Errorf("failed to convert ClusterTraffic to int, error: %s", err)
 	}
 
 	if cr, err := strconv.Atoi(s3Status.RequestCount); err == nil {
 		c.ClusterRequestCount.Add(float64(cr))
+	} else {
+		logger.Errorf("failed to convert RequestCount to int, error: %s", err)
 	}
 	if cf, err := strconv.Atoi(s3Status.FailedRequest); err == nil {
 		c.ClusterFailedRequestCount.Add(float64(cf))
+	} else {
+		logger.Errorf("failed to convert FailedRequest to int, error: %s", err)
 	}
 	if caf, err := strconv.Atoi(s3Status.AuthFailed); err == nil {
 		c.ClusterAuthFailedCount.Add(float64(caf))
+	} else {
+		logger.Errorf("failed to convert AuthFailed to int, error: %s", err)
 	}
 	for _, bi := range s3Status.BucketsInfo {
 		c.BucketTraffic.WithLabelValues(bi.Name).Add(float64(bi.Traffic))
@@ -154,12 +163,18 @@ func (c *ZepClusterS3Collector) collect() error {
 		cmd := strings.TrimSuffix(ci.Cmd, ": ")
 		if rc, err := strconv.Atoi(ci.RequestCount); err == nil {
 			c.CommandsInfo.WithLabelValues(cmd, "total").Add(float64(rc))
+		} else {
+			logger.Errorf("failed to convert cmdinfo RequestCount to int, error: %s", err)
 		}
 		if five, err := strconv.Atoi(ci.FiveXXError); err == nil {
 			c.CommandsInfo.WithLabelValues(cmd, "5xx").Add(float64(five))
+		} else {
+			logger.Errorf("failed to convert cmdinfo 5xx to int, error: %s", err)
 		}
 		if four, err := strconv.Atoi(ci.FourXXError); err == nil {
 			c.CommandsInfo.WithLabelValues(cmd, "4xx").Add(float64(four))
+		} else {
+			logger.Errorf("failed to convert cmdinfo 4xx to int, error: %s", err)
 		}
 
 	}

@@ -82,8 +82,6 @@ func (c *ZepExporter) Collect(ch chan<- prometheus.Metric) {
 
 func DoExporter(addr, path, metricsPath, hostType string) {
 
-	//conn := zeppelin.NewConn(addrs)
-	//prometheus.MustRegister(NewZepExporter(conn, hostType))
 	prometheus.MustRegister(NewZepExporter(hostType, path))
 
 	http.Handle(metricsPath, prometheus.Handler())
