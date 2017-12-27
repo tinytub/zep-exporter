@@ -28,15 +28,21 @@ var jsonexporterCmd = &cobra.Command{
 		exporter.DoExporter(addr, path, matricPath, hostType)
 	},
 }
+
 var (
-	path string
+	path       string
+	addr       string
+	matricPath string
+	hostType   string
+	region     string
 )
 
 func init() {
 
-	jsonexporterCmd.Flags().StringVar(&path, "path", "/usr/local/zep-server/bin", "listen address")
+	jsonexporterCmd.Flags().StringVar(&path, "remotepath", "", "remote s3 path")
 	jsonexporterCmd.Flags().StringVar(&matricPath, "matricpath", "/metrics", "metric path")
 	jsonexporterCmd.Flags().StringVar(&hostType, "hosttype", "json", "host type")
+	jsonexporterCmd.Flags().StringVar(&addr, "addr", ":9128", "listen address")
 
 	RootCmd.AddCommand(jsonexporterCmd)
 }

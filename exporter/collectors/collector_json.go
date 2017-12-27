@@ -23,17 +23,24 @@ import (
 	"strings"
 	"sync"
 
+	logging "github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var boolchange = map[string]int{"true": 0, "false": 1}
+const (
+	namespace = "zeppelin"
+)
+
+var (
+	logger     = logging.MustGetLogger("collector")
+	boolchange = map[string]int{"true": 0, "false": 1}
+)
 
 // A ClusterUsageCollector is used to gather all the global stats about a given
 // zep cluster. It is sometimes essential to know how fast the cluster is growing
 // or shrinking as a whole in order to zero in on the cause. The pool specific
 // stats are provided separately.
 type ZepClusterJsonCollector struct {
-	basepath   string
 	tableCount int
 
 	MetaCount    prometheus.Gauge
@@ -58,9 +65,8 @@ type ZepClusterJsonCollector struct {
 // NewClusterUsageCollector creates and returns the reference to ClusterUsageCollector
 // and internally defines each metric that display cluster stats.
 //func NewZepClusterCollector(conn Conn) *ZepClusterCollector {
-func NewZepClusterJsonCollector(path string) *ZepClusterJsonCollector {
+func NewZepClusterJsonCollector() *ZepClusterJsonCollector {
 	return &ZepClusterJsonCollector{
-		basepath: path,
 		MetaCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: namespace,

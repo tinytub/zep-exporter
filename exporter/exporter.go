@@ -44,16 +44,16 @@ var _ prometheus.Collector = &ZepExporter{}
 func NewZepExporter(hostType, path string) *ZepExporter {
 	var exporter *ZepExporter
 	switch hostType {
-	case "tcp":
-		exporter = &ZepExporter{
-			collectors: []prometheus.Collector{
-				collectors.NewZepClusterCollector(),
-			},
-		}
 	case "json":
 		exporter = &ZepExporter{
 			collectors: []prometheus.Collector{
-				collectors.NewZepClusterJsonCollector(path),
+				collectors.NewZepClusterJsonCollector(),
+			},
+		}
+	case "s3":
+		exporter = &ZepExporter{
+			collectors: []prometheus.Collector{
+				collectors.NewZepClusterS3Collector(path),
 			},
 		}
 	}
