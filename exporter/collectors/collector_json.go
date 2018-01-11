@@ -43,23 +43,27 @@ var (
 type ZepClusterJsonCollector struct {
 	tableCount int
 
-	MetaCount    prometheus.Gauge
-	NodeCount    prometheus.Gauge
-	NodeUp       prometheus.Gauge
-	NodeDown     prometheus.Gauge
-	MetaMaster   *prometheus.GaugeVec
-	TableUsed    *prometheus.GaugeVec
-	TableRemain  *prometheus.GaugeVec
-	TableQuery   *prometheus.GaugeVec
-	TableQPS     *prometheus.GaugeVec
-	TableCount   prometheus.Gauge
-	Epoch        prometheus.Gauge
-	Dismatch     prometheus.Gauge
-	Healthy      prometheus.Gauge
-	Pcount       *prometheus.GaugeVec
-	Inconsistent *prometheus.GaugeVec
-	Incomplete   *prometheus.GaugeVec
-	Lagging      *prometheus.GaugeVec
+	MetaCount          prometheus.Gauge
+	MetaInfo           *prometheus.GaugeVec
+	CompleteProportion prometheus.Gauge
+	NodeCount          prometheus.Gauge
+	NodeUp             prometheus.Gauge
+	NodeDown           prometheus.Gauge
+	MetaMaster         *prometheus.GaugeVec
+	TableUsed          *prometheus.GaugeVec
+	TableRemain        *prometheus.GaugeVec
+	TableQuery         *prometheus.GaugeVec
+	TableQPS           *prometheus.GaugeVec
+	TableCount         prometheus.Gauge
+	Epoch              prometheus.Gauge
+	Dismatch           prometheus.Gauge
+	Healthy            prometheus.Gauge
+	Pcount             *prometheus.GaugeVec
+	Inconsistent       *prometheus.GaugeVec
+	Incomplete         *prometheus.GaugeVec
+	Lagging            *prometheus.GaugeVec
+	Stuck              *prometheus.GaugeVec
+	SlowDown           *prometheus.GaugeVec
 }
 
 // NewClusterUsageCollector creates and returns the reference to ClusterUsageCollector
@@ -73,6 +77,21 @@ func NewZepClusterJsonCollector() *ZepClusterJsonCollector {
 				Name:      "meta_count",
 				Help:      "zeppelin meta server count",
 			}),
+		MetaInfo: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "meta_info",
+				Help:      "zeppelin meta info",
+			},
+			[]string{"addr"},
+		),
+		CompleteProportion: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "complete_proportion",
+				Help:      "zeppelin meta info",
+			},
+		),
 
 		NodeCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -80,6 +99,7 @@ func NewZepClusterJsonCollector() *ZepClusterJsonCollector {
 				Name:      "node_count",
 				Help:      "zeppelin node server count",
 			}),
+
 		NodeDown: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -93,6 +113,7 @@ func NewZepClusterJsonCollector() *ZepClusterJsonCollector {
 				Help:      "zeppelin node is up",
 			},
 		),
+
 		MetaMaster: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -194,12 +215,30 @@ func NewZepClusterJsonCollector() *ZepClusterJsonCollector {
 			},
 			[]string{"table"},
 		),
+		Stuck: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "Stuck",
+				Help:      "zeppelin Stuck",
+			},
+			[]string{"table"},
+		),
+		SlowDown: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "Slowdown",
+				Help:      "zeppelin slowdown",
+			},
+			[]string{"table"},
+		),
 	}
 }
 
 func (c *ZepClusterJsonCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
 		c.MetaCount,
+		c.MetaInfo,
+		c.CompleteProportion,
 		c.NodeCount,
 		c.NodeDown,
 		c.MetaMaster,
@@ -216,6 +255,8 @@ func (c *ZepClusterJsonCollector) collectorList() []prometheus.Collector {
 		c.Inconsistent,
 		c.Incomplete,
 		c.Lagging,
+		c.Stuck,
+		c.SlowDown,
 	}
 }
 
@@ -230,7 +271,22 @@ func (c *ZepClusterJsonCollector) collect() error {
 	if info.Meta.Error != "true" {
 		c.MetaCount.Set(float64(info.Meta.Count))
 		c.MetaMaster.Reset()
-		c.MetaMaster.WithLabelValues(info.Meta.Master).Set(1)
+		c.MetaMaster.WithLabelValues(info.Meta.Leader.Node).Set(1)
+		switch info.Meta.Leader.Status {
+		case "Up":
+			c.MetaInfo.WithLabelValues(info.Meta.Leader.Node).Set(0)
+		case "Down":
+			c.MetaInfo.WithLabelValues(info.Meta.Leader.Node).Set(1)
+		}
+		for _, fol := range info.Meta.Followers {
+			switch fol.Status {
+			case "Up":
+				c.MetaInfo.WithLabelValues(fol.Node).Set(0)
+			case "Down":
+				c.MetaInfo.WithLabelValues(fol.Node).Set(1)
+			}
+		}
+		c.CompleteProportion.Set(float64(info.Meta.CompleteProportion))
 	}
 
 	if info.Query.Error != "true" {
@@ -287,11 +343,15 @@ func (c *ZepClusterJsonCollector) collect() error {
 				c.Inconsistent.WithLabelValues(table.Name).Set(float64(table.Inconsistent))
 				c.Incomplete.WithLabelValues(table.Name).Set(float64(table.Incomplete))
 				c.Lagging.WithLabelValues(table.Name).Set(float64(table.Lagging))
+				c.Stuck.WithLabelValues(table.Name).Set(float64(table.Stuck))
+				c.SlowDown.WithLabelValues(table.Name).Set(float64(table.Slowdown))
 			} else {
 				c.Pcount.Reset()
 				c.Inconsistent.Reset()
 				c.Incomplete.Reset()
 				c.Lagging.Reset()
+				c.Stuck.Reset()
+				c.SlowDown.Reset()
 			}
 		}
 	}
