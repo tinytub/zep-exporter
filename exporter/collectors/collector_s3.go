@@ -17,13 +17,13 @@ import (
 type ZepClusterS3Collector struct {
 	addr                      string
 	QPS                       prometheus.Gauge
-	ClusterTraffic            prometheus.Counter
-	ClusterRequestCount       prometheus.Counter
-	ClusterFailedRequestCount prometheus.Counter
-	ClusterAuthFailedCount    prometheus.Counter
-	BucketTraffic             *prometheus.CounterVec
-	BucketVolume              *prometheus.CounterVec
-	CommandsInfo              *prometheus.CounterVec
+	ClusterTraffic            prometheus.Gauge
+	ClusterRequestCount       prometheus.Gauge
+	ClusterFailedRequestCount prometheus.Gauge
+	ClusterAuthFailedCount    prometheus.Gauge
+	BucketTraffic             *prometheus.GaugeVec
+	BucketVolume              *prometheus.GaugeVec
+	CommandsInfo              *prometheus.GaugeVec
 }
 
 func NewZepClusterS3Collector(path string) *ZepClusterS3Collector {
@@ -40,52 +40,52 @@ func NewZepClusterS3Collector(path string) *ZepClusterS3Collector {
 				Help:      "S3 cluster QPS",
 			},
 		),
-		ClusterTraffic: prometheus.NewCounter(
-			prometheus.CounterOpts{
+		ClusterTraffic: prometheus.NewGauge(
+			prometheus.GaugeOpts{
 				Namespace: namespace,
 				Name:      "ClusterTraffic",
 				Help:      "S3 cluster traffic",
 			},
 		),
-		ClusterRequestCount: prometheus.NewCounter(
-			prometheus.CounterOpts{
+		ClusterRequestCount: prometheus.NewGauge(
+			prometheus.GaugeOpts{
 				Namespace: namespace,
 				Name:      "ClusterRequestCount",
 				Help:      "S3 cluster requsts failed count",
 			},
 		),
-		ClusterFailedRequestCount: prometheus.NewCounter(
-			prometheus.CounterOpts{
+		ClusterFailedRequestCount: prometheus.NewGauge(
+			prometheus.GaugeOpts{
 				Namespace: namespace,
 				Name:      "ClusterFailedRequestCount",
 				Help:      "S3 cluster failed request",
 			},
 		),
-		ClusterAuthFailedCount: prometheus.NewCounter(
-			prometheus.CounterOpts{
+		ClusterAuthFailedCount: prometheus.NewGauge(
+			prometheus.GaugeOpts{
 				Namespace: namespace,
 				Name:      "ClusterAuthFailedCount",
 				Help:      "S3 cluster auth failed count",
 			},
 		),
-		BucketTraffic: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
+		BucketTraffic: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
 				Namespace: namespace,
 				Name:      "BucketTraffic",
 				Help:      "S3 bucket traffic",
 			},
 			[]string{"bucket"},
 		),
-		BucketVolume: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
+		BucketVolume: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
 				Namespace: namespace,
 				Name:      "BucketVolume",
 				Help:      "S3 bucket volume usage",
 			},
 			[]string{"bucket"},
 		),
-		CommandsInfo: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
+		CommandsInfo: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
 				Namespace: namespace,
 				Name:      "CommandsInfo",
 				Help:      "S3 command infos",
@@ -135,44 +135,44 @@ func (c *ZepClusterS3Collector) collect() error {
 	}
 
 	if ct, err := strconv.Atoi(s3Status.ClusterTraffic); err == nil {
-		c.ClusterTraffic.Add(float64(ct))
+		c.ClusterTraffic.Set(float64(ct))
 	} else {
 		logger.Errorf("failed to convert ClusterTraffic to int, error: %s", err)
 	}
 
 	if cr, err := strconv.Atoi(s3Status.RequestCount); err == nil {
-		c.ClusterRequestCount.Add(float64(cr))
+		c.ClusterRequestCount.Set(float64(cr))
 	} else {
 		logger.Errorf("failed to convert RequestCount to int, error: %s", err)
 	}
 	if cf, err := strconv.Atoi(s3Status.FailedRequest); err == nil {
-		c.ClusterFailedRequestCount.Add(float64(cf))
+		c.ClusterFailedRequestCount.Set(float64(cf))
 	} else {
 		logger.Errorf("failed to convert FailedRequest to int, error: %s", err)
 	}
 	if caf, err := strconv.Atoi(s3Status.AuthFailed); err == nil {
-		c.ClusterAuthFailedCount.Add(float64(caf))
+		c.ClusterAuthFailedCount.Set(float64(caf))
 	} else {
 		logger.Errorf("failed to convert AuthFailed to int, error: %s", err)
 	}
 	for _, bi := range s3Status.BucketsInfo {
-		c.BucketTraffic.WithLabelValues(bi.Name).Add(float64(bi.Traffic))
-		c.BucketVolume.WithLabelValues(bi.Name).Add(float64(bi.Volume))
+		c.BucketTraffic.WithLabelValues(bi.Name).Set(float64(bi.Traffic))
+		c.BucketVolume.WithLabelValues(bi.Name).Set(float64(bi.Volume))
 	}
 	for _, ci := range s3Status.CommandsInfo {
 		cmd := strings.TrimSuffix(ci.Cmd, ": ")
 		if rc, err := strconv.Atoi(ci.RequestCount); err == nil {
-			c.CommandsInfo.WithLabelValues(cmd, "total").Add(float64(rc))
+			c.CommandsInfo.WithLabelValues(cmd, "total").Set(float64(rc))
 		} else {
 			logger.Errorf("failed to convert cmdinfo RequestCount to int, error: %s", err)
 		}
 		if five, err := strconv.Atoi(ci.FiveXXError); err == nil {
-			c.CommandsInfo.WithLabelValues(cmd, "5xx").Add(float64(five))
+			c.CommandsInfo.WithLabelValues(cmd, "5xx").Set(float64(five))
 		} else {
 			logger.Errorf("failed to convert cmdinfo 5xx to int, error: %s", err)
 		}
 		if four, err := strconv.Atoi(ci.FourXXError); err == nil {
-			c.CommandsInfo.WithLabelValues(cmd, "4xx").Add(float64(four))
+			c.CommandsInfo.WithLabelValues(cmd, "4xx").Set(float64(four))
 		} else {
 			logger.Errorf("failed to convert cmdinfo 4xx to int, error: %s", err)
 		}
