@@ -330,29 +330,27 @@ func (c *ZepClusterJsonCollector) collect() error {
 		c.NodeUp.Set(float64(checkup.Node.Up))
 		c.NodeDown.Set(float64(checkup.Node.Down))
 	}
+
 	if checkup.Epoch.Error != "true" {
 		c.Epoch.Set(float64(checkup.Epoch.Epoch))
 		c.Dismatch.Set(float64(checkup.Epoch.DismatchNum))
 	}
 
-	if checkup.Table.Error != "true" {
-		c.TableCount.Set(float64(checkup.Table.Count))
-		for _, table := range checkup.Table.Detail {
-			if table.Result != "passed" {
-				c.Pcount.WithLabelValues(table.Name).Set(float64(table.PCount))
-				c.Inconsistent.WithLabelValues(table.Name).Set(float64(table.Inconsistent))
-				c.Incomplete.WithLabelValues(table.Name).Set(float64(table.Incomplete))
-				c.Lagging.WithLabelValues(table.Name).Set(float64(table.Lagging))
-				c.Stuck.WithLabelValues(table.Name).Set(float64(table.Stuck))
-				c.SlowDown.WithLabelValues(table.Name).Set(float64(table.Slowdown))
-			} else {
-				c.Pcount.Reset()
-				c.Inconsistent.Reset()
-				c.Incomplete.Reset()
-				c.Lagging.Reset()
-				c.Stuck.Reset()
-				c.SlowDown.Reset()
-			}
+	c.TableCount.Set(float64(checkup.Table.Count))
+	c.Pcount.Reset()
+	c.Inconsistent.Reset()
+	c.Incomplete.Reset()
+	c.Lagging.Reset()
+	c.Stuck.Reset()
+	c.SlowDown.Reset()
+	for _, table := range checkup.Table.Detail {
+		if table.Result != "passed" {
+			c.Pcount.WithLabelValues(table.Name).Set(float64(table.PCount))
+			c.Inconsistent.WithLabelValues(table.Name).Set(float64(table.Inconsistent))
+			c.Incomplete.WithLabelValues(table.Name).Set(float64(table.Incomplete))
+			c.Lagging.WithLabelValues(table.Name).Set(float64(table.Lagging))
+			c.Stuck.WithLabelValues(table.Name).Set(float64(table.Stuck))
+			c.SlowDown.WithLabelValues(table.Name).Set(float64(table.Slowdown))
 		}
 	}
 

@@ -41,7 +41,7 @@ var _ prometheus.Collector = &ZepExporter{}
 // NewZepExporter creates an instance to ZepExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewZepExporter(hostType, path string) *ZepExporter {
+func NewZepExporter(hostType, path, region string) *ZepExporter {
 	var exporter *ZepExporter
 	switch hostType {
 	case "json":
@@ -53,7 +53,7 @@ func NewZepExporter(hostType, path string) *ZepExporter {
 	case "s3":
 		exporter = &ZepExporter{
 			collectors: []prometheus.Collector{
-				collectors.NewZepClusterS3Collector(path),
+				collectors.NewZepClusterS3Collector(path, region),
 			},
 		}
 	}
@@ -80,9 +80,9 @@ func (c *ZepExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func DoExporter(addr, path, metricsPath, hostType string) {
+func DoExporter(addr, path, metricsPath, hostType, region string) {
 
-	prometheus.MustRegister(NewZepExporter(hostType, path))
+	prometheus.MustRegister(NewZepExporter(hostType, path, region))
 
 	http.Handle(metricsPath, prometheus.Handler())
 

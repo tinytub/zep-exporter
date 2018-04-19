@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -10,12 +11,18 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/tinytub/zep-exporter/s3core"
+	"github.com/tinytub/zep-exporter/utils/system"
 )
 
 //var boolchange = map[string]int{"true": 0, "false": 1}
 
 type ZepClusterS3Collector struct {
+	Region                    string
 	addr                      string
+	ProcessUp                 prometheus.Gauge
+	StatusAPI                 prometheus.Gauge
+	S3ClusterUp               prometheus.Gauge
 	QPS                       prometheus.Gauge
 	ClusterTraffic            prometheus.Gauge
 	ClusterRequestCount       prometheus.Gauge
@@ -26,13 +33,35 @@ type ZepClusterS3Collector struct {
 	CommandsInfo              *prometheus.GaugeVec
 }
 
-func NewZepClusterS3Collector(path string) *ZepClusterS3Collector {
+func NewZepClusterS3Collector(path, region string) *ZepClusterS3Collector {
 	if path == "" {
 		logger.Error("there is no remote S3 metrics path found")
 		os.Exit(1)
 	}
 	return &ZepClusterS3Collector{
-		addr: path,
+		addr:   path,
+		Region: region,
+		ProcessUp: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "ProcessUp",
+				Help:      "S3 gateway ProcessUp",
+			},
+		),
+		StatusAPI: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "StatusAPI",
+				Help:      "S3 gateway Status API up",
+			},
+		),
+		S3ClusterUp: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "S3ClusterUp",
+				Help:      "S3 gateway cluster up",
+			},
+		),
 		QPS: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -96,6 +125,9 @@ func NewZepClusterS3Collector(path string) *ZepClusterS3Collector {
 }
 func (c *ZepClusterS3Collector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
+		c.ProcessUp,
+		c.StatusAPI,
+		c.S3ClusterUp,
 		c.QPS,
 		c.ClusterTraffic,
 		c.ClusterRequestCount,
@@ -108,18 +140,60 @@ func (c *ZepClusterS3Collector) collectorList() []prometheus.Collector {
 }
 
 func (c *ZepClusterS3Collector) collect() error {
+	s3info := map[string]map[string]string{
+		"shbtS3":   map[string]string{"key": "3VOvhEIJzOLfDeMLQNUw", "secret": "YH1eeGeCplAawtRUrwIaM5VZPCbvE3vwxzO4fCv5", "domain": "http://shbt.s3.addops.soft.360.cn"},
+		"bjytS3":   map[string]string{"key": "acbQjR4IOLsARSOkmN2L", "secret": "HQTVLHkj8jb0PJqsQ0zlYEI1dkyRmqDnAohsGk8h", "domain": "http://s3.bjyt.addops.soft.360.cn"},
+		"bjccS3":   map[string]string{"key": "K4KCqZLWEPKZBgcMAMWE", "secret": "Mnwz2pCvw4rgAnMuP9x3wNNVHWCnf1PhsgMRp8zt", "domain": "http://s3.bjcc.addops.soft.360.cn"},
+		"sozzzcS3": map[string]string{"key": "nTwk5F7RDiVRFCEd5oUq", "secret": "SHlYTkGLDU1P8Owwk1llBqQXQ9niYLSWbjr8pcQs", "domain": "http://so-zzzc.s3.addops.soft.360.cn"},
+		"shyc2S3":  map[string]string{"key": "VkPiPZQzD3ZOTqsYwVks", "secret": "53MIIzqTYnd7DPUzx6YFwXBxVDWWAoIW2yGVGnzk", "domain": "http://shyc2.s3.addops.soft.360.cn"},
+		"latoS3":   map[string]string{"key": "01SkhYicJkcXISoFucbM", "secret": "qaNTjHGlXnGiykUvhm8Svv4lSzqx40RdaZzzCgqn", "domain": "http://104.192.110.232"},
+		"zzzcS3":   map[string]string{"key": "s2rpv7dXQDf9Cw1CRKEz", "secret": "kJZHf0DqHWpn1yakUkS3dTaRDXAJOvbBcnMsZPCm", "domain": "http://zzzc.s3.addops.soft.360.cn"},
+	}
+
+	s3cli := s3core.NewClient(s3info[c.Region]["domain"], s3info[c.Region]["key"], s3info[c.Region]["secret"])
+
+	if res := s3core.SetOBJ(s3cli, "s3-monitor", "s3-exporter", strconv.FormatInt(time.Now().UnixNano(), 10)); res {
+		c.S3ClusterUp.Set(float64(1))
+	} else {
+		c.S3ClusterUp.Set(float64(0))
+	}
+
+	mstats := &system.Stats{
+		Procs:        []string{"zgw_server"},
+		CacheCmdLine: true,
+	}
+
+	err := mstats.Init()
+	if err != nil {
+		fmt.Println("mstat init error")
+		return nil
+	}
+
+	mstats.GetProcMap()
+	c.ProcessUp.Set(float64(0))
+	for _, proc := range mstats.ProcsMap {
+		if proc.Name == "zgw_server" {
+			c.ProcessUp.Set(float64(1))
+		}
+	}
+
 	//TODO url 合法检测
 	client := http.Client{
 		Timeout: time.Duration(3) * time.Second,
 	}
+	c.StatusAPI.Set(float64(1))
 	res, err := client.Get(c.addr)
 	if err != nil {
-		return err
+		c.StatusAPI.Set(float64(0))
+		fmt.Println("curl api error")
+		return nil
 	}
 	data, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return err
+		c.StatusAPI.Set(float64(0))
+		fmt.Println("read body error")
+		return nil
 	}
 
 	var s3Status *S3Status

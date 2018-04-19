@@ -25,7 +25,7 @@ var jsonexporterCmd = &cobra.Command{
 	Short: "zep exporter json for prometheus",
 	Run: func(cmd *cobra.Command, args []string) {
 		//check region 并获取meta地址这个是不是要换个地方？
-		exporter.DoExporter(addr, path, matricPath, hostType)
+		exporter.DoExporter(addr, path, matricPath, hostType, region)
 	},
 }
 
@@ -43,6 +43,7 @@ func init() {
 	jsonexporterCmd.Flags().StringVar(&matricPath, "matricpath", "/metrics", "metric path")
 	jsonexporterCmd.Flags().StringVar(&hostType, "hosttype", "json", "host type")
 	jsonexporterCmd.Flags().StringVar(&addr, "addr", ":9128", "listen address")
+	jsonexporterCmd.Flags().StringVar(&region, "region", "", "region")
 
 	RootCmd.AddCommand(jsonexporterCmd)
 }
