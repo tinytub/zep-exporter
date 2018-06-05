@@ -141,13 +141,13 @@ func (c *ZepClusterS3Collector) collectorList() []prometheus.Collector {
 
 func (c *ZepClusterS3Collector) collect() error {
 	s3info := map[string]map[string]string{
-		"shbtS3":   map[string]string{"key": "3VOvhEIJzOLfDeMLQNUw", "secret": "YH1eeGeCplAawtRUrwIaM5VZPCbvE3vwxzO4fCv5", "domain": "http://shbt.s3.addops.soft.360.cn"},
-		"bjytS3":   map[string]string{"key": "acbQjR4IOLsARSOkmN2L", "secret": "HQTVLHkj8jb0PJqsQ0zlYEI1dkyRmqDnAohsGk8h", "domain": "http://s3.bjyt.addops.soft.360.cn"},
-		"bjccS3":   map[string]string{"key": "K4KCqZLWEPKZBgcMAMWE", "secret": "Mnwz2pCvw4rgAnMuP9x3wNNVHWCnf1PhsgMRp8zt", "domain": "http://s3.bjcc.addops.soft.360.cn"},
-		"sozzzcS3": map[string]string{"key": "nTwk5F7RDiVRFCEd5oUq", "secret": "SHlYTkGLDU1P8Owwk1llBqQXQ9niYLSWbjr8pcQs", "domain": "http://so-zzzc.s3.addops.soft.360.cn"},
-		"shyc2S3":  map[string]string{"key": "VkPiPZQzD3ZOTqsYwVks", "secret": "53MIIzqTYnd7DPUzx6YFwXBxVDWWAoIW2yGVGnzk", "domain": "http://shyc2.s3.addops.soft.360.cn"},
+		"shbtS3":   map[string]string{"key": "3VOvhEIJzOLfDeMLQNUw", "secret": "YH1eeGeCplAawtRUrwIaM5VZPCbvE3vwxzO4fCv5", "domain": "http://shbt.s3.cn"},
+		"bjytS3":   map[string]string{"key": "acbQjR4IOLsARSOkmN2L", "secret": "HQTVLHkj8jb0PJqsQ0zlYEI1dkyRmqDnAohsGk8h", "domain": "http://s3.bjyt.cn"},
+		"bjccS3":   map[string]string{"key": "K4KCqZLWEPKZBgcMAMWE", "secret": "Mnwz2pCvw4rgAnMuP9x3wNNVHWCnf1PhsgMRp8zt", "domain": "http://s3.bjcc.cn"},
+		"sozzzcS3": map[string]string{"key": "nTwk5F7RDiVRFCEd5oUq", "secret": "SHlYTkGLDU1P8Owwk1llBqQXQ9niYLSWbjr8pcQs", "domain": "http://so-zzzc.cn"},
+		"shyc2S3":  map[string]string{"key": "VkPiPZQzD3ZOTqsYwVks", "secret": "53MIIzqTYnd7DPUzx6YFwXBxVDWWAoIW2yGVGnzk", "domain": "http://shyc2.s3.cn"},
 		"latoS3":   map[string]string{"key": "01SkhYicJkcXISoFucbM", "secret": "qaNTjHGlXnGiykUvhm8Svv4lSzqx40RdaZzzCgqn", "domain": "http://104.192.110.232"},
-		"zzzcS3":   map[string]string{"key": "s2rpv7dXQDf9Cw1CRKEz", "secret": "kJZHf0DqHWpn1yakUkS3dTaRDXAJOvbBcnMsZPCm", "domain": "http://zzzc.s3.addops.soft.360.cn"},
+		"zzzcS3":   map[string]string{"key": "s2rpv7dXQDf9Cw1CRKEz", "secret": "kJZHf0DqHWpn1yakUkS3dTaRDXAJOvbBcnMsZPCm", "domain": "http://zzzc.s3.cn"},
 	}
 
 	s3cli := s3core.NewClient(s3info[c.Region]["domain"], s3info[c.Region]["key"], s3info[c.Region]["secret"])
