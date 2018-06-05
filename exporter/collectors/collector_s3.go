@@ -146,7 +146,7 @@ func (c *ZepClusterS3Collector) collect() error {
 		"bjccS3":   map[string]string{"key": "K4KCqZLWEPKZBgcMAMWE", "secret": "Mnwz2pCvw4rgAnMuP9x3wNNVHWCnf1PhsgMRp8zt", "domain": "http://s3.bjcc.cn"},
 		"sozzzcS3": map[string]string{"key": "nTwk5F7RDiVRFCEd5oUq", "secret": "SHlYTkGLDU1P8Owwk1llBqQXQ9niYLSWbjr8pcQs", "domain": "http://so-zzzc.cn"},
 		"shyc2S3":  map[string]string{"key": "VkPiPZQzD3ZOTqsYwVks", "secret": "53MIIzqTYnd7DPUzx6YFwXBxVDWWAoIW2yGVGnzk", "domain": "http://shyc2.s3.cn"},
-		"latoS3":   map[string]string{"key": "01SkhYicJkcXISoFucbM", "secret": "qaNTjHGlXnGiykUvhm8Svv4lSzqx40RdaZzzCgqn", "domain": "http://104.192.110.232"},
+		"latoS3":   map[string]string{"key": "01SkhYicJkcXISoFucbM", "secret": "qaNTjHGlXnGiykUvhm8Svv4lSzqx40RdaZzzCgqn", "domain": "http://104.232"},
 		"zzzcS3":   map[string]string{"key": "s2rpv7dXQDf9Cw1CRKEz", "secret": "kJZHf0DqHWpn1yakUkS3dTaRDXAJOvbBcnMsZPCm", "domain": "http://zzzc.s3.cn"},
 	}
 
